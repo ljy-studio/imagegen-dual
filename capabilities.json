@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "source": "Platform owner supplied model IDs; edit and parameter support unverified",
+  "models": {
+    "az/gpt-image-2": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
+    "az/gpt-image-2.5-flare": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
+    "az/gpt-image-2.5-sunburst": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
+    "gpt-image-2": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"},
+    "gpt-image-2.5-flare": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"},
+    "gpt-image-2.5-sunburst": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"}
+  }
+}
