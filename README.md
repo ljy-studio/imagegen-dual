@@ -2,6 +2,8 @@
 
 通过智蔻图片 API 生成和编辑图片。根 `SKILL.md` 只保留入口和核心约束；安装、选择、API、凭证、故障与发布细节按需读取。
 
+直接发给 Agent：请从这个仓库安装 `ziikoo-imagegen` skill：https://github.com/ljy-studio/ziikoo-imagegen.git 。安装到当前客户端支持的 skills 目录，运行 `scripts/install.py`，再按 `references/首次安装验收.md` 完成初始化；不要修改我的 CCSwitch/magpie 配置，初始化阶段的 GET 检查不要调用生图接口，任何真实生图、edit 或并发测试都必须先说明请求上限并征得我同意。
+
 仓库：
 
     https://github.com/ljy-studio/ziikoo-imagegen.git
