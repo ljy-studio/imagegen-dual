@@ -6,12 +6,12 @@
 
 “模型能完成文本对话”“终端接受自定义模型配置”“模型能正确调用宿主工具”是三种不同能力。模型可在某个客户端聊天，不代表它能调用该客户端的原生提问、文件或终端工具；也不代表它支持图片生成。
 
-| 客户端 | 模型接入方式 | 原生提问能力 | 对 ziikoo-imagegen 的影响 |
+| 客户端 | 模型接入方式 | 原生提问能力 | 对 imagegen-dual 的影响 |
 |---|---|---|---|
 | Codex | 原生 OpenAI 模型支持最完整；配置层允许自定义 provider、base URL 和 API key，Codex 自身也实现同步和异步提问工具 | `request_user_input` 受协作模式限制；`request_user_input_async` 是否真正调用成功取决于模型、网关和当前会话工具适配 | 按当前组合探测；Sol 实测可用，Opus 5.5 与 DeepSeek 在 Codex 实测返回 `unsupported call` 时改用编号文本 |
 | Claude Code | 原生支持 Claude 别名和完整模型 ID；可通过 `ANTHROPIC_BASE_URL` 或网关接入自定义模型名 | 原生 `AskUserQuestion` 工具；Claude Code + DeepSeek 已实测可用 | 优先原生选择；第三方网关仍需验证工具调用，不能按模型名推断 |
 | DeepSeek Harness | 默认 DeepSeek provider；插件化架构可通过自定义组合挂载其他 provider/model 目录 | 官方提供 provider-neutral 的 `ask_user_question` 和用户问题接口 | 与“Codex 中选择 DeepSeek”是两个不同宿主；不能把 Codex 的限制归到 DSH |
-| WorkBuddy | 支持内置模型和 OpenAI Chat Completions 兼容自定义模型；本地配置声明工具调用、图片输入等能力 | 提问和任务交互由具体客户端/技能决定，不统一等同于 Codex 或 Claude 的工具名 | 模型必须启用工具调用；图片输入不等于图片生成，仍由 ziikoo-imagegen 调图片 API |
+| WorkBuddy | 支持内置模型和 OpenAI Chat Completions 兼容自定义模型；本地配置声明工具调用、图片输入等能力 | 提问和任务交互由具体客户端/技能决定，不统一等同于 Codex 或 Claude 的工具名 | 模型必须启用工具调用；图片输入不等于图片生成，仍由 imagegen-dual 调图片 API |
 | Trae | IDE 自定义模型支持 OpenAI Chat Completions 和 Anthropic Messages；可设模型 ID、端点、工具轮数、图片输入和推理参数 | 具体提问呈现和工具名按 Trae 当前版本验证 | 连接测试通过只说明 API 可访问，须再测 ask、脚本执行和图片显示 |
 
 ## 关键边界
@@ -46,7 +46,7 @@
 
 首次安装时允许发一次 onboarding ask，因为此时用户预期会完成安装交互。测试必须等待用户真实点击，才能验证工具显示、选项渲染和答案回传；返回 `accepted`、关闭面板或超时都不足以记为成功。
 
-结果使用 `scripts/ask_capability.py` 保存到 `~/.ziikoo-imagegen/ask-capabilities.json`，缓存键包含 host、client、model、gateway、protocol、tool 和 version。不得只按模型名缓存，因为同一模型在不同客户端或网关中的工具行为可能不同。客户端升级、模型或网关变化时旧记录失效，未复测的新组合使用编号文本。
+结果使用 `scripts/ask_capability.py` 保存到 `~/.imagegen-dual/ask-capabilities.json`，缓存键包含 host、client、model、gateway、protocol、tool 和 version。不得只按模型名缓存，因为同一模型在不同客户端或网关中的工具行为可能不同。客户端升级、模型或网关变化时旧记录失效，未复测的新组合使用编号文本。
 
 空参数 dry-run 仅属于隔离诊断。它可能返回 schema 错误而未显示问题，不能替代 onboarding 的真实点击测试。
 

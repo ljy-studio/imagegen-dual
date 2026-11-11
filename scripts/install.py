@@ -1,4 +1,4 @@
-"""Initialize a cloned ziikoo-imagegen skill without storing API credentials."""
+"""Initialize a cloned imagegen-dual skill without storing API credentials."""
 import argparse
 import json
 from pathlib import Path
@@ -7,7 +7,7 @@ import sys
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-STATE = Path.home() / '.ziikoo-imagegen'
+STATE = Path.home() / '.imagegen-dual'
 
 
 def run(*args, cwd=ROOT, quiet=False):

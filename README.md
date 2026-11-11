@@ -1,19 +1,19 @@
-# 智蔻文生图 Skill
+# ImageGen Dual 文生图 Skill
 
-通过智蔻图片 API 生成和编辑图片。根 `SKILL.md` 只保留入口和核心约束；安装、选择、API、凭证、故障与发布细节按需读取。
+通过 ImageGen Dual 图片 API 生成和编辑图片。根 `SKILL.md` 只保留入口和核心约束；安装、选择、API、凭证、故障与发布细节按需读取。
 
-从这个仓库安装 ziikoo-imagegen skill：https://github.com/ljy-studio/ziikoo-imagegen.git 。
+从这个仓库安装 imagegen-dual skill：https://github.com/ljy-studio/imagegen-dual.git 。
 
 仓库：
 
-    https://github.com/ljy-studio/ziikoo-imagegen.git
+    https://github.com/ljy-studio/imagegen-dual.git
 
 ## 安装
 
 需要 Python 3.11+、Git。把仓库克隆到宿主识别 skills 的目录，然后在仓库目录运行安装脚本：
 
-    git clone https://github.com/ljy-studio/ziikoo-imagegen.git ~/.agents/skills/ziikoo-imagegen
-    cd ~/.agents/skills/ziikoo-imagegen
+    git clone https://github.com/ljy-studio/imagegen-dual.git ~/.agents/skills/imagegen-dual
+    cd ~/.agents/skills/imagegen-dual
     python scripts/install.py
 
 Claude Code 可把目标目录换成其实际 skills 目录。DeepSeek Harness、WorkBuddy 和 Trae 的安装位置及脚本权限须按对应客户端验证。
@@ -23,7 +23,7 @@ Claude Code 可把目标目录换成其实际 skills 目录。DeepSeek Harness�
 - 检查独立 Git 仓库和可信 origin；
 - 安装 `requirements.txt`；
 - 运行无网络、无凭证的离线测试；
-- 写入 `~/.ziikoo-imagegen/install.json`。不保存 API Key。
+- 写入 `~/.imagegen-dual/install.json`。不保存 API Key。
 
 ## 首次初始化
 
@@ -51,9 +51,9 @@ skill 入口先运行：
 
     python scripts/update.py --auto
 
-更新源固定在 `release.json` 的 `ljy-studio/ziikoo-imagegen`、`main`。成功检查后 24 小时内不重复。离线、工作树有修改、仓库不匹配或依赖文件变化时继续使用当前版本。
+更新源固定在 `release.json` 的 `ljy-studio/imagegen-dual`、`main`。成功检查后 24 小时内不重复。离线、工作树有修改、仓库不匹配或依赖文件变化时继续使用当前版本。
 
-新版先在临时检出中运行测试，通过后快进合并；失败保留旧版。用户配置、凭证、验收记录和输出保存在 `~/.ziikoo-imagegen/` 或任务目录，不进入更新仓库。
+新版先在临时检出中运行测试，通过后快进合并；失败保留旧版。用户配置、凭证、验收记录和输出保存在 `~/.imagegen-dual/` 或任务目录，不进入更新仓库。
 
 ## 状态
 

@@ -15,7 +15,7 @@ import accounts
 import requests
 from PIL import Image
 
-STATE = Path.home() / '.ziikoo-imagegen'
+STATE = Path.home() / '.imagegen-dual'
 DIRECT = ['https://api.gaoxin.net.cn/v1', 'https://api-sh.gaoxin.net.cn/v1']
 
 
@@ -83,7 +83,7 @@ def load(profile=None):
         selected, _ = accounts.discover(selected=cfg['account_ref'])
         key = selected.get(cfg['account_ref'], {}).get('key')
     else:
-        key = os.environ.get(cfg.get('key_env', 'ZIIKOO_API_KEY'))
+        key = os.environ.get(cfg.get('key_env', 'IMAGEGEN_API_KEY'))
     if not key:
         raise ValueError('missing_key_environment_variable')
     bases = [cfg['gateway_url']] if cfg.get('gateway_url') else DIRECT

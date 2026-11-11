@@ -8,7 +8,7 @@ import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-STATE = Path.home() / '.ziikoo-imagegen'
+STATE = Path.home() / '.imagegen-dual'
 
 
 def git(*args, cwd=ROOT):
@@ -57,7 +57,7 @@ def update(auto=False):
         return {'status': 'up_to_date'}
     git('merge-base', '--is-ancestor', old, target)
     # Test the exact fetched commit in a disposable checkout, before activation.
-    with tempfile.TemporaryDirectory(prefix='ziikoo-update-') as temp:
+    with tempfile.TemporaryDirectory(prefix='imagegen-update-') as temp:
         git('clone', '--quiet', '--no-hardlinks', str(ROOT), temp)
         git('fetch', str(ROOT), target, cwd=temp)
         git('checkout', '--quiet', '--detach', target, cwd=temp)
@@ -75,7 +75,7 @@ def update(auto=False):
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=45)
     if git('rev-parse', 'HEAD') != old or git('status', '--porcelain', '--untracked-files=all'):
         return {'status': 'installation_changed_during_check'}
-    git('update-ref', 'refs/ziikoo/previous', old)
+    git('update-ref', 'refs/imagegen-dual/previous', old)
     git('merge', '--ff-only', target)
     try:
         smoke(ROOT)

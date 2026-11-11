@@ -103,8 +103,8 @@ class Tests(unittest.TestCase):
     def test_gateway_isolation(self):
         with tempfile.TemporaryDirectory() as temp:
             state = Path(temp)
-            (state / 'config.json').write_text(json.dumps({'key_env': 'TEST_ZIIKOO_KEY', 'gateway_url': 'http://127.0.0.1:1234'}))
-            with patch.object(c, 'STATE', state), patch.dict(c.os.environ, {'TEST_ZIIKOO_KEY': 'fake'}):
+            (state / 'config.json').write_text(json.dumps({'key_env': 'TEST_IMAGEGEN_KEY', 'gateway_url': 'http://127.0.0.1:1234'}))
+            with patch.object(c, 'STATE', state), patch.dict(c.os.environ, {'TEST_IMAGEGEN_KEY': 'fake'}):
                 self.assertEqual(c.load('default')[2], ['http://127.0.0.1:1234/v1'])
 
     def test_explicit_selection_before_request(self):
@@ -116,13 +116,13 @@ class Tests(unittest.TestCase):
             state = Path(temp)
             (state / 'config.json').write_text(json.dumps({'profiles': {
                 'HyperChain': {'key_env': 'TEST_H'},
-                '智蔻信息': {'key_env': 'TEST_Z', 'gateway_url': 'http://127.0.0.1:1234/v1'}
+                'ImageGen Dual信息': {'key_env': 'TEST_Z', 'gateway_url': 'http://127.0.0.1:1234/v1'}
             }}), encoding='utf-8')
             with patch.object(c, 'STATE', state), patch.dict(c.os.environ, {'TEST_H': 'h', 'TEST_Z': 'z'}):
                 with self.assertRaises(c.SelectionRequired) as error:
                     c.load()
-                self.assertEqual(set(error.exception.options), {'HyperChain', '智蔻信息'})
-                self.assertEqual(c.load('智蔻信息')[1], 'z')
+                self.assertEqual(set(error.exception.options), {'HyperChain', 'ImageGen Dual信息'})
+                self.assertEqual(c.load('ImageGen Dual信息')[1], 'z')
                 self.assertEqual(c.load('HyperChain')[1], 'h')
 
     def test_update_preserves_changes(self):

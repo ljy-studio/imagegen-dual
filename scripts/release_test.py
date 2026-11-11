@@ -41,12 +41,12 @@ class Tests(unittest.TestCase):
             home = Path(temp)
             directory = home / '.config/magpie'
             directory.mkdir(parents=True)
-            record = {'id': 'api-sh-gaoxin-net', 'name': 'ziikoo-test', 'key': 'data-key',
+            record = {'id': 'api-sh-gaoxin-net', 'name': 'imagegen-test', 'key': 'data-key',
                       'baseAPI': 'responses', 'responses': 'https://api.gaoxin.net.cn/v1'}
             (directory / 'providers.json').write_text(json.dumps({'providers': [record]}))
             found, notices = accounts.discover(home)
             self.assertIn('magpie:api-sh-gaoxin-net', found)
-            self.assertEqual(found['magpie:api-sh-gaoxin-net']['label'], 'ziikoo-test')
+            self.assertEqual(found['magpie:api-sh-gaoxin-net']['label'], 'imagegen-test')
             self.assertNotIn('data-key', json.dumps(found))
             selected, _ = accounts.discover(home, 'magpie:api-sh-gaoxin-net')
             self.assertEqual(selected['magpie:api-sh-gaoxin-net']['key'], 'data-key')
@@ -60,7 +60,7 @@ class Tests(unittest.TestCase):
             git('init', '-b', 'main'); git('config','user.email','test@example.invalid'); git('config','user.name','Offline test')
             git('add','.'); git('commit','-m','initial')
             git('clone', str(source), str(installed), cwd=base)
-            trusted = 'https://github.com/ljy-studio/ziikoo-imagegen.git'
+            trusted = 'https://github.com/ljy-studio/imagegen-dual.git'
             git('remote','set-url','origin', trusted,cwd=installed)
             git('config', 'url.'+str(source)+'.insteadOf',trusted,cwd=installed)
             spec=importlib.util.spec_from_file_location('candidate_updater',installed/'scripts/update.py')
@@ -85,7 +85,7 @@ class Tests(unittest.TestCase):
                 return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
             git('init','-b','main'); git('config','user.email','test@example.invalid'); git('config','user.name','Offline test')
             git('add','.'); git('commit','-m','install test')
-            trusted = 'https://github.com/ljy-studio/ziikoo-imagegen.git'
+            trusted = 'https://github.com/ljy-studio/imagegen-dual.git'
             git('clone',str(source),str(installed),cwd=base)
             git('remote','set-url','origin',trusted,cwd=installed)
             spec=importlib.util.spec_from_file_location('candidate_install',installed/'scripts/install.py')

@@ -1,16 +1,16 @@
 ---
-name: ziikoo-imagegen
-description: 使用智蔻图片 API 生成或编辑图片，自动选择可用端点，并让用户显式选择额度来源和模型。适用于能执行 Python 的 Codex、Claude Code 及兼容 skills 的助手。
+name: imagegen-dual
+description: 使用 ImageGen Dual 图片 API 生成或编辑图片，自动选择可用端点，并让用户显式选择额度来源和模型。适用于能执行 Python 的 Codex、Claude Code 及兼容 skills 的助手。
 ---
 
-# 智蔻文生图
+# ImageGen Dual 文生图
 
 通过本目录的 Python 客户端调用图片 API。图片模型是 API 参数，不得切换宿主主对话模型，也不得用宿主内置图片工具替代。
 
 ## 入口
 
 1. 运行 `python scripts/update.py --auto`。未配置 Git、离线或有本地修改时继续使用当前版本，简报更新状态。
-2. 读取 `~/.ziikoo-imagegen/install.json`。没有记录时阅读 [首次安装验收](references/首次安装验收.md) 并完成初始化。
+2. 读取 `~/.imagegen-dual/install.json`。没有记录时阅读 [首次安装验收](references/首次安装验收.md) 并完成初始化。
 3. 当前会话尚未选定额度来源或模型时，按 [提问与选择](references/提问与选择.md) 询问。二者明确后在本会话持续沿用，直至用户主动切换；新对话重新选择。
 4. 用户要求生成或编辑时，阅读 [API调用](references/API调用.md) 创建任务并运行客户端。
 5. 接口、网络或下载异常时，阅读 [故障恢复与诊断](references/故障恢复与诊断.md)。请求结果未知时停止，禁止自动重发。
@@ -30,7 +30,7 @@ description: 使用智蔻图片 API 生成或编辑图片，自动选择可用�
 
 ## 按需参考
 
-- [首次安装验收](references/首次安装验收.md)：初始化、无生图请求检查、付费测试授权和 ZIIKOO Logo 验收。
+- [首次安装验收](references/首次安装验收.md)：初始化、无生图请求检查、付费测试授权和 IMAGEGEN Logo 验收。
 - [提问与选择](references/提问与选择.md)：原生 ask 探测、会话选择、模型与额度来源 ask。
 - [API调用](references/API调用.md)：任务格式、生成、edit、模型路由和成功展示。
 - [凭证与网关](references/凭证与网关.md)：CCSwitch、magpie、手动环境变量和本地网关。

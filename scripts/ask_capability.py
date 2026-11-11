@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import time
 
-STATE = Path.home() / '.ziikoo-imagegen'
+STATE = Path.home() / '.imagegen-dual'
 CACHE = STATE / 'ask-capabilities.json'
 FIELDS = ('host', 'client', 'model', 'gateway', 'protocol', 'tool', 'version')
 STATUSES = ('supported', 'unsupported', 'text_fallback')
