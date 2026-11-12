@@ -44,7 +44,7 @@ class Tests(unittest.TestCase):
             c.Image.new('RGB', (4, 4)).save(image)
             post = factory.return_value.__enter__.return_value.post
             post.return_value = response
-            result = c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'output_dir': temp},
+            result = c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'multipart', 'output_dir': temp},
                                 'fake-secret', [{'endpoint': c.DIRECT[0], 'models': ['test']}], 'edit')
             self.assertEqual(result['error']['code'], 'bad_size')
             self.assertTrue(post.call_args.args[0].endswith('/images/edits'))
@@ -52,7 +52,7 @@ class Tests(unittest.TestCase):
 
     def test_installation_get_only(self):
         with tempfile.TemporaryDirectory() as temp, patch.object(c, 'STATE', Path(temp)), patch.object(c, 'load', return_value=({'selected_profile': 'test'}, 'fake', c.DIRECT)), patch.object(install, 'probe', return_value={'status': 'success'}) as probe:
-            report = install.run('test')
+            report = install.run('test', full=True)
             self.assertEqual(probe.call_count, 10)
             self.assertEqual(report['generation_posts'], 0)
 

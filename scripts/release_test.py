@@ -54,7 +54,7 @@ class Tests(unittest.TestCase):
     def test_update_real_git(self):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp); source = base/'source'; installed = base/'installed'; state = base/'state'
-            shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git'))
+            shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git', '.venv', '.build-venv', 'build', 'dist'))
             def git(*args, cwd=source):
                 return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
             git('init', '-b', 'main'); git('config','user.email','test@example.invalid'); git('config','user.name','Offline test')
@@ -80,7 +80,7 @@ class Tests(unittest.TestCase):
     def test_install(self):
         with tempfile.TemporaryDirectory() as temp:
             base = Path(temp); source = base/'source'; installed = base/'installed'; state = base/'state'
-            shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git'))
+            shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git', '.venv', '.build-venv', 'build', 'dist'))
             def git(*args, cwd=source):
                 return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
             git('init','-b','main'); git('config','user.email','test@example.invalid'); git('config','user.name','Offline test')

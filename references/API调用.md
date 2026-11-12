@@ -1,50 +1,27 @@
 # API 调用
 
+<client> 为便携 exe 或专属虚拟环境 Python + scripts/cli.py。
+
 ## 生成
 
-任务 JSON 至少包含：
+任务至少包含 profile（已确认来源 ID）、model（完整模型 ID）、prompt。可选 size、quality、output_dir、no_fallback，不得写密钥。运行 <client> generate --job <绝对路径>；GET /v1/models 后以 JSON POST /v1/images/generations。
 
-    {
-      "profile": "本会话选定来源的稳定ID",
-      "model": "本会话选定模型完整ID",
-      "prompt": "用户的生图要求"
-    }
+## 编辑：默认 JSON
 
-可选字段包括 `size`、`quality`、`output_dir`、`no_fallback`。不要在任务中写 API Key。
+任务在生成字段基础上增加 image（输入图片绝对路径）和可选 edit_transport=json。运行 <client> edit --job <绝对路径>。
 
-运行：
+客户端验证 PNG/JPEG/WEBP 后，以 application/json POST /v1/images/edits。请求包含 model、prompt、n=1、size、quality，以及 images 数组，其元素为 image_url 字段，值为 data:image/png;base64,... 形式的完整 data URL。
 
-    python scripts/client.py generate --job <绝对路径>
+不向 API 发送本地文件路径或裸 base64。data URL 最长 20,971,520 字符，超限在 POST 前报错，不自动压缩图片或切换协议。
 
-客户端先以 `GET /v1/models` 获取实时模型和路由，再提交 `POST /v1/images/generations`。
+## multipart 兼容模式
 
-## 编辑
+服务明确支持时设置 edit_transport=multipart，客户端以 data 传文本、files.image 传文件，Content-Type 和 boundary 由 HTTP 库共同生成，不能配 application/json 头。任务字段优先，其次 profile 配置，默认 json。
 
-编辑任务增加输入图片：
+2026-11-12 对照 [OpenAI 官方 edit API](https://developers.openai.com/api/reference/resources/images/methods/edit)：当前参考页定义 JSON images[].image_url，支持 data URL，并列出两个 2.5 模型。第三方网关和 az/ 路由是否完整兼容仍需实际验收；multipart 仅保留为显式兼容选项。
 
-    {
-      "profile": "本会话选定来源的稳定ID",
-      "model": "本会话选定模型完整ID",
-      "prompt": "编辑要求",
-      "image": "输入图片绝对路径"
-    }
+invalid character '-' in numeric literal 与 multipart 边界被 JSON 解析的情况一致；也可能来自网关内部转换，单凭错误无法确认。record.json 保存请求路径和 Content-Type，不保存请求图片内容。被拒绝不自动换协议再发一次。
 
-运行：
+## 路由与结果
 
-    python scripts/client.py edit --job <绝对路径>
-
-调用 multipart `POST /v1/images/edits`。原始图片保持不变，结果写入新的任务目录。真实兼容性以接口测试为准，不能由文生图成功推导 edit 成功。
-
-## 路由
-
-直连模式按 `api.gaoxin.net.cn`、`api-sh.gaoxin.net.cn` 顺序探测，最近成功端点缓存 10 分钟。缓存只影响顺序，模型列表仍实时获取。
-
-仅在连接建立超时且同一模型存在于另一个已探测端点时切换。结果未知的 POST 不重发。429 不通过切换端点绕过。
-
-## 成功展示
-
-读取客户端返回的 `record.json`，确认状态为 `success` 且包含完整解码结果。使用宿主可用的图片查看器检查，再用绝对本地路径展示。
-
-报告请求模型、响应模型（缺失写未知）、额度来源、端点、耗时和文件路径。不得根据图片外观推断底层模型。
-
-`client.py models` 的 `image_models` 是实时列表与 `capabilities.json` 的交集。`unknown` 表示尚未验证，不表示支持。
+直连探测 api.gaoxin.net.cn 与 api-sh.gaoxin.net.cn；显式网关只访问网关。仅连接建立超时可按范围切换已探测端点；未知 POST 不重发，429 不绕过。原图保持不变，结果写新目录。success 且完整解码后展示；响应无模型就记录未知。capabilities 的 unknown 不代表支持。

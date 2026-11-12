@@ -1,108 +1,82 @@
 # ImageGen Dual
 
-面向 Codex、Claude Code 及兼容 Skills 的图片生成与编辑 Skill。
-
-它把图片模型选择、额度来源确认、网关发现、请求执行、结果下载和失败诊断收进一条可审计的工作流。图片模型通过独立 HTTP API 调用，不会切换宿主 Agent 的主对话模型，也不会偷偷改用宿主内置图片工具。
+面向 Agent 的图片生成与编辑 Skill。独立 API 客户端、显式模型与账户、结果验证、可回退更新。
 
 [![Tests](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml/badge.svg)](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml)
-[![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Version](https://img.shields.io/badge/version-0.2.0-111827)](version.json)
+[![Version](https://img.shields.io/badge/version-0.3.0--rc.1-111827)](version.json)
 
-## 适合什么场景
+## 一句话安装
 
-- 在 Agent 中生成图片或基于本轮图片执行 edit。
-- 同时管理多个图片 API 来源、网关或额度账户。
-- 在真实请求前先确认模型、额度来源和请求上限。
-- 需要失败可解释、结果未知时不自动重发的图片工作流。
-- 希望通过 Git 更新，让已安装的 Skill 保持可回退。
+从这个仓库安装 imagegen-dual skill：https://github.com/ljy-studio/imagegen-dual.git 。
 
-## 快速安装
+## 安装方式
 
-需要 Python 3.11+ 和 Git。
+| 环境 | 方式 |
+| --- | --- |
+| Windows x64，无 Python/Git | 使用便携 ZIP，已包含运行时与依赖 |
+| GitHub 不可访问 | 维护者经可信网盘、内网或文件传输提供同一便携包与 SHA256 |
+| 已有 Python 3.11+ | 在 skill 专属虚拟环境安装源码 |
+| 无 Git，但有 Python | 源码 ZIP，安装时增加 --archive |
 
-```bash
-git clone https://github.com/ljy-studio/imagegen-dual.git ~/.agents/skills/imagegen-dual
-cd ~/.agents/skills/imagegen-dual
-python scripts/install.py
+便携包解压到宿主支持的空闲 skill 目录，核对 SHA256 后运行：
+
+```powershell
+./imagegen-dual.exe self-test
+./imagegen-dual.exe install
 ```
 
-安装脚本会安装依赖、运行离线测试，并写入 `~/.imagegen-dual/install.json`。它不会保存 API Key。
+源码（Windows）：
+
+```powershell
+python -m venv .venv
+./.venv/Scripts/python.exe scripts/install.py
+```
+
+macOS/Linux 使用 python3 和 .venv/bin/python，目前没有这两个平台的免依赖包。源码 ZIP 仍需 Python 和依赖。安装、自检可离线，实际生图仍需访问图片 API。当前没有部署国内镜像。完整流程见 [安装与离线分发](references/安装与离线分发.md)。
 
 ## 快速使用
 
-安装后，Agent 会按以下顺序工作：
+用户已明确账户、模型和任务时直接执行；缺项合并询问，连续编辑沿用选择，不逐次问“是否开始”。安装不强制付费验收，也不修改其他 skill 或 AGENTS.md。
 
-1. 检查更新和本地安装状态。
-2. 发现可用账户或读取显式配置。
-3. 让用户选择额度来源和图片模型。
-4. 通过 `scripts/client.py` 执行 generate 或 edit。
-5. 只展示本轮实际返回并成功解码的图片。
-
-也可以直接运行客户端：
-
-```bash
-python scripts/client.py generate --job path/to/job.json
-python scripts/client.py edit --job path/to/edit-job.json
+```powershell
+./imagegen-dual.exe generate --job path/to/job.json
+./imagegen-dual.exe edit --job path/to/edit-job.json
 ```
 
-任务格式、模型路由和 edit 输入要求见 [`references/API调用.md`](references/API调用.md)。
+源码使用虚拟环境 Python + scripts/cli.py。任务必须显式包含 profile、model、prompt；编辑增加本地 image。默认 JSON images 数组及 data URL，明确支持文件上传的服务可显式使用 multipart。详见 [API调用](references/API调用.md)。
 
-## 设计边界
+## 请求与授权边界
 
-| 规则 | 行为 |
-| --- | --- |
-| 模型选择 | 每次请求显式传入，不按宿主当前激活项代选 |
-| 额度与测试 | 普通请求不自动扩大为付费测试或并发验收 |
-| 失败处理 | 结果未知时停止，不自动重发 |
-| 配置安全 | 默认只读发现配置，不读取 OAuth，不输出密钥 |
-| 图片展示 | 只展示本轮实际下载并解码成功的文件 |
-| 工具兼容 | 按宿主、客户端、模型和网关组合判断，不按模型名跨客户端推断 |
+- 复用用户已有选择和明确项目偏好，不按软件激活项猜测收费来源。
+- 用户请求本身授权约定范围内任务；额外测试、超预算或更换收费来源才补充确认。
+- 结果未知时停止，不自动更换协议或重发；下载失败只恢复已有响应。
+- 只展示本轮返回并完整解码的图片，不用历史图片代替。
+- 同名安装先检查来源与本地定制，保留原件；本 skill 不声明覆盖项目规则。
 
-真实生图、edit 和并发验收可能消耗额度。首次初始化和付费验收流程见 [`references/首次安装验收.md`](references/首次安装验收.md)。
+## 更新
 
-## 自动更新
+Git 源码可运行 scripts/cli.py update --auto：每安装目录一天最多一次检查，离线失败也退避。新版先测试再快进，保留本地修改。
 
-Skill 入口会运行：
+便携包和源码 ZIP 使用验证新包、并排解压、自检后手动换包，保留旧版与 ~/.imagegen-dual 状态。
 
-```bash
-python scripts/update.py --auto
-```
+## 开发验证
 
-更新前会在临时检出中运行测试，成功后才快进合并；失败会保留当前版本。更新源和分支位于 [`release.json`](release.json)，本地状态、配置、凭证、验收记录和任务产物保存在 `~/.imagegen-dual/` 或任务目录，不进入仓库。
-
-## 仓库结构
-
-```text
-SKILL.md                  Agent 入口与核心约束
-scripts/install.py        安装与首次初始化
-scripts/update.py         自动更新与回退保护
-scripts/client.py         图片 API 客户端
-scripts/ask_capability.py 提问工具兼容性探测
-references/               按需读取的操作、诊断与兼容性文档
-capabilities.json         已知模型能力边界
-version.json              Skill 版本与配置 schema
-```
-
-## 开发与验证
-
-```bash
-python -m pip install -r requirements.txt
+```sh
 python -B scripts/offline_test.py
+python -B scripts/grey_test.py
 python -B scripts/release_test.py
 ```
 
-GitHub Actions 会在 `main` 推送和 Pull Request 中自动执行同一组检查。
+便携包由独立构建虚拟环境运行 scripts/package_release.py 生成，包含第三方许可证与 SHA256 清单。详见 [维护与发布](references/维护与发布.md)。
 
-## 文档入口
+## 文档
 
-- [`SKILL.md`](SKILL.md)：给 Agent 读取的入口文件。
-- [`references/首次安装验收.md`](references/首次安装验收.md)：初始化、只读检查和付费验收。
-- [`references/提问与选择.md`](references/提问与选择.md)：额度来源、模型选择和工具降级。
-- [`references/API调用.md`](references/API调用.md)：generate、edit、任务格式和结果处理。
-- [`references/凭证与网关.md`](references/凭证与网关.md)：账户发现、网关和环境变量。
-- [`references/故障恢复与诊断.md`](references/故障恢复与诊断.md)：请求失败、结果未知和恢复边界。
-- [`references/维护与发布.md`](references/维护与发布.md)：版本、更新、回退和发布检查。
+- [SKILL.md](SKILL.md)：Agent 入口与范围。
+- [提问与选择](references/提问与选择.md)：减少重复问题、复用授权。
+- [凭证与网关](references/凭证与网关.md)：配置与只读发现。
+- [首次安装验收](references/首次安装验收.md)：可选检查。
+- [故障恢复与诊断](references/故障恢复与诊断.md)：错误记录与恢复。
 
 ## 当前状态
 
-版本 `0.2.0`。离线测试、本地 Git 更新测试和发布检查已完成；真实生图、edit、公网首次安装及全部宿主组合仍需按实际账户和客户端分别验收。
+0.3.0-rc.1 为灰测修复候选。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。

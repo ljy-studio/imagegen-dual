@@ -4,3 +4,7 @@ __pycache__/
 .env
 outputs/
 *.zip
+.build-venv/
+build/
+dist/
+*.spec

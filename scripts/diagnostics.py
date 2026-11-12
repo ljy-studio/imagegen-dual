@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import platform
+from runtime import ROOT
 from urllib.parse import urlparse
 
 STATUSES = {
@@ -18,8 +19,8 @@ def report(task, share=False):
     record = json.loads((task / 'record.json').read_text(encoding='utf-8'))
     if not share:
         return {'record': record, 'next_step': STATUSES.get(record.get('status'), 'Inspect local record before proceeding.')}
-    version = json.loads((Path(__file__).resolve().parents[1] / 'version.json').read_text(encoding='utf-8'))['version']
-    result = {k: record[k] for k in ('status', 'operation', 'http_status', 'elapsed_seconds') if k in record}
+    version = json.loads((ROOT / 'version.json').read_text(encoding='utf-8'))['version']
+    result = {k: record[k] for k in ('status', 'operation', 'http_status', 'elapsed_seconds', 'request_content_type', 'request_path') if k in record}
     result.update(version=version, python=platform.python_version(), system=platform.system(),
                   next_step=STATUSES.get(record.get('status'), 'Inspect locally.'))
     host = urlparse(record.get('endpoint', '')).hostname

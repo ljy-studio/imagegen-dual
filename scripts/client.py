@@ -11,6 +11,7 @@ import time
 from urllib.parse import urlparse
 import uuid
 import accounts
+from runtime import ROOT
 
 import requests
 from PIL import Image
@@ -174,9 +175,23 @@ def generate(job, key, available, operation='generate'):
         raise ValueError('prompt_required')
     image = Path(job['image']).resolve() if operation == 'edit' else None
     image_info = validate(image.read_bytes()) if image else None
+    transport = job.get('edit_transport', 'json') if image else 'json'
+    if transport not in ('json', 'multipart'):
+        raise ValueError('edit_transport_must_be_json_or_multipart')
+    image_data = None
+    if image:
+        mime = {'PNG': 'image/png', 'JPEG': 'image/jpeg', 'WEBP': 'image/webp'}[image_info['format']]
+        if transport == 'json':
+            image_data = 'data:' + mime + ';base64,' + base64.b64encode(image.read_bytes()).decode('ascii')
+            if len(image_data) > 20971520:
+                raise ValueError('edit_data_url_exceeds_20MiB_choose_supported_multipart')
+        elif image_info['bytes'] >= 50 * 1024 * 1024:
+            raise ValueError('edit_file_must_be_less_than_50MiB')
     task = Path(job.get('output_dir', 'outputs/imagegen')).resolve() / uuid.uuid4().hex
     task.mkdir(parents=True)
     record = {'status': 'started', 'operation': operation, 'task': str(task), 'request_model': model, 'response_model': None, 'attempts': []}
+    record.update(request_content_type='application/json' if transport == 'json' else 'multipart/form-data',
+                  request_path='/images/edits' if image else '/images/generations')
     (task / 'record.json').write_text(json.dumps(record), encoding='utf-8')
     start = time.monotonic()
     try:
@@ -188,10 +203,12 @@ def generate(job, key, available, operation='generate'):
                     payload = {'prompt': job['prompt'], 'model': model, 'n': 1,
                                'size': job.get('size', '1024x1024'), 'quality': job.get('quality', 'auto')}
                     args = {'headers': {'Authorization': 'Bearer ' + key}, 'timeout': (10, 360), 'allow_redirects': False}
-                    if image:
-                        mime = {'PNG': 'image/png', 'JPEG': 'image/jpeg', 'WEBP': 'image/webp'}[image_info['format']]
+                    if image and transport == 'multipart':
                         with image.open('rb') as stream:
                             r = s.post(base + '/images/edits', data=payload, files={'image': (image.name, stream, mime)}, **args)
+                    elif image:
+                        payload['images'] = [{'image_url': image_data}]
+                        r = s.post(base + '/images/edits', json=payload, **args)
                     else:
                         r = s.post(base + '/images/generations', json=payload, **args)
             except requests.ConnectTimeout as exc:
@@ -207,6 +224,8 @@ def generate(job, key, available, operation='generate'):
             record['http_status'] = r.status_code
             if r.status_code != 200:
                 record['error'] = error_detail(r, key)
+                if image and 'numeric literal' in record['error'].get('message', ''):
+                    record['diagnosis'] = 'Possible request encoding/parser mismatch; verify gateway Content-Type handling. No retry sent.'
                 record['status'] = ('rejected' if r.status_code in (400, 401, 402, 403, 404, 422, 429) else 'result_unknown')
                 if r.status_code == 429:
                     record['retry_after'] = r.headers.get('Retry-After')
@@ -266,10 +285,12 @@ def main():
             cfg, key, bases = load(a.profile or job.get('profile'))
             available = routes(key, bases)
             if a.command == 'models':
-                catalog = json.loads((Path(__file__).resolve().parents[1] / 'capabilities.json').read_text(encoding='utf-8'))
+                catalog = json.loads((ROOT / 'capabilities.json').read_text(encoding='utf-8'))
                 result = {'profile': cfg['selected_profile'], 'routes': available,
                           'image_models': {m: catalog['models'][m] for m in sorted({m for x in available for m in x['models']}) if m in catalog['models']}}
             else:
+                if a.command == 'edit':
+                    job.setdefault('edit_transport', cfg.get('edit_transport', 'json'))
                 result = generate(job, key, available, a.command)
             result['profile'] = cfg['selected_profile']
         print(json.dumps(result, ensure_ascii=True, indent=2))

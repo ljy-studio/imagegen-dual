@@ -6,13 +6,16 @@ import subprocess
 import sys
 import tempfile
 import time
+import hashlib
+from runtime import ROOT, BUNDLED
+if not BUNDLED:
+    ROOT = Path(__file__).resolve().parents[1]
 
-ROOT = Path(__file__).resolve().parents[1]
 STATE = Path.home() / '.imagegen-dual'
 
 
 def git(*args, cwd=ROOT):
-    return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True, timeout=45).strip()
+    return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True, encoding="utf-8", timeout=45).strip()
 
 
 def normalize(url):
@@ -27,9 +30,11 @@ def smoke(root):
 
 
 def update(auto=False):
+    if BUNDLED:
+        return {'status': 'portable_manual_update', 'message': 'Install a verified replacement package alongside the current one.'}
     cfg = json.loads((ROOT / 'release.json').read_text(encoding='utf-8'))
     STATE.mkdir(parents=True, exist_ok=True)
-    marker = STATE / 'last-update-check'
+    marker = STATE / ('last-update-check-' + hashlib.sha256(str(ROOT).encode()).hexdigest()[:12])
     if auto and marker.exists() and time.time() - marker.stat().st_mtime < 86400:
         return {'status': 'checked_recently'}
     remote = cfg['repository']
@@ -41,7 +46,7 @@ def update(auto=False):
     # Reject a parent repository: an installation must be its own checkout.
     try:
         top = Path(git('rev-parse', '--show-toplevel')).resolve()
-    except subprocess.CalledProcessError:
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return {'status': 'not_git_install'}
     if top != ROOT:
         return {'status': 'requires_standalone_git_install'}
@@ -50,7 +55,12 @@ def update(auto=False):
     if normalize(git('config', '--get', 'remote.origin.url')) != normalize(remote):
         return {'status': 'repository_mismatch'}
     old = git('rev-parse', 'HEAD')
-    git('fetch', '--no-tags', 'origin', branch)
+    # Back off failed checks as well: offline users must not wait on every task.
+    try:
+        git('fetch', '--no-tags', 'origin', branch)
+    except (subprocess.SubprocessError, OSError) as exc:
+        marker.touch()
+        return {'status': 'offline_current_version_preserved', 'error_type': type(exc).__name__}
     target = git('rev-parse', 'FETCH_HEAD')
     if target == old:
         marker.touch()
