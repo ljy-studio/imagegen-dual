@@ -31,7 +31,7 @@ def build():
                     '--name', 'imagegen-dual', '--distpath', str(stage),
                     '--workpath', str(ROOT / 'build/pyinstaller'),
                     '--specpath', str(ROOT / 'build'), str(ROOT / 'scripts/cli.py')], cwd=ROOT, check=True)
-    for name in ('SKILL.md', 'README.md', 'version.json', 'release.json', 'capabilities.json', 'requirements.txt'):
+    for name in ('SKILL.md', 'README.md', 'INSTALL.md', 'version.json', 'release.json', 'capabilities.json', 'requirements.txt'):
         shutil.copy2(ROOT / name, stage / name)
     shutil.copytree(ROOT / 'references', stage / 'references')
     shutil.copytree(ROOT / 'agents', stage / 'agents')

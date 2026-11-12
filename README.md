@@ -7,7 +7,9 @@
 
 ## 一句话安装
 
-从这个仓库安装 imagegen-dual skill：https://github.com/ljy-studio/imagegen-dual.git 。
+从这个仓库安装 imagegen dual skill：https://github.com/ljy-studio/imagegen-dual.git 。
+
+Agent 收到安装请求后，先阅读 [INSTALL.md](INSTALL.md)，按其中流程完成清理、安装、离线验证和结果报告。用户无需复制额外操作细则。
 
 ## 安装方式
 
