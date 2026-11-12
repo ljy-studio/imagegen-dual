@@ -51,7 +51,7 @@ def verify(archive):
                 self.respond(400, {'error': {'message': type(exc).__name__}})
 
     with tempfile.TemporaryDirectory() as temp:
-        root = Path(temp)
+        root = Path(temp).resolve()
         with zipfile.ZipFile(archive) as z:
             for item in z.namelist():
                 if not (root / item).resolve().is_relative_to(root.resolve()):

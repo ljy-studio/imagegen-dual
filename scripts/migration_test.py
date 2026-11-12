@@ -13,7 +13,7 @@ class Tests(unittest.TestCase):
     def setUp(self):
         t = tempfile.TemporaryDirectory()
         self.addCleanup(t.cleanup)
-        self.base = Path(t.name)
+        self.base = Path(t.name).resolve()
         self.skills = self.base / 'skills'
         self.skills.mkdir()
         self.old = self.skills / 'imagegen-dual'
