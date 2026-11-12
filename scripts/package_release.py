@@ -34,6 +34,7 @@ def build():
     for name in ('SKILL.md', 'README.md', 'version.json', 'release.json', 'capabilities.json', 'requirements.txt'):
         shutil.copy2(ROOT / name, stage / name)
     shutil.copytree(ROOT / 'references', stage / 'references')
+    shutil.copytree(ROOT / 'agents', stage / 'agents')
     licenses = stage / 'THIRD_PARTY_LICENSES'
     licenses.mkdir()
     for name in ('requests', 'Pillow', 'urllib3', 'certifi', 'charset-normalizer', 'idna', 'pyinstaller'):

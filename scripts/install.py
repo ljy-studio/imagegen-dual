@@ -22,7 +22,36 @@ def normalize(url):
     return url.strip().removesuffix('.git').rstrip('/')
 
 
-def initialize(skip_deps=False, archive=False):
+def verify_migration(backup):
+    if not backup:
+        raise ValueError("preinstall_migration_required_use_migrate_scan_then_apply")
+    from migrate import direct, sha
+    path = direct(backup)
+    manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
+    if manifest.get("status") != "applied" or manifest.get("schema") != 1:
+        raise ValueError("migration_receipt_not_applied")
+    if str(ROOT.resolve().parent) not in manifest.get("skills_roots", []):
+        raise ValueError("install_target_not_in_migration_scope")
+    for item in manifest["skills"]:
+        old = direct(item["path"])
+        if old != ROOT.resolve() and old.exists():
+            raise ValueError("old_skill_reappeared_after_cleanup")
+    for item in manifest["rules"]:
+        if sha(direct(item["path"]).read_bytes()) != item["after"]:
+            raise ValueError("rules_changed_after_cleanup_review_again")
+    return str(path)
+
+
+def initialize(skip_deps=False, archive=False, migration_backup=None):
+    if ROOT.name != "imagegen-dual":
+        raise ValueError("installation_directory_must_be_imagegen-dual")
+    skill = (ROOT / "SKILL.md").read_text(encoding="utf-8-sig")
+    if "name: imagegen-dual" not in skill.split("---", 2)[1].splitlines():
+        raise ValueError("skill_identifier_must_be_imagegen-dual")
+    ui = (ROOT / "agents/openai.yaml").read_text(encoding="utf-8")
+    if '  display_name: "imagegen dual"' not in ui.splitlines():
+        raise ValueError("display_name_must_be_imagegen_dual")
+    receipt = verify_migration(migration_backup)
     if sys.version_info < (3, 11):
         raise ValueError('python_3_11_or_newer_required')
     release = json.loads((ROOT / 'release.json').read_text(encoding='utf-8'))
@@ -54,6 +83,8 @@ def initialize(skip_deps=False, archive=False):
         'version': version,
         'mode': 'portable' if BUNDLED else ('archive' if archive else 'git'),
         'root': str(ROOT),
+        'display_name': 'imagegen dual',
+        'migration_backup': receipt,
         'commit': commit,
         'repository': release['repository'],
         'installed_at': time.time(),
@@ -63,14 +94,19 @@ def initialize(skip_deps=False, archive=False):
     return state
 
 
-if __name__ == '__main__':
+def main(argv=None):
     parser = argparse.ArgumentParser()
     parser.add_argument('--skip-deps', action='store_true')
     parser.add_argument('--archive', action='store_true', help='Initialize a verified archive; no Git or automatic source updates')
-    args = parser.parse_args()
+    parser.add_argument('--migration-backup', required=True, help='Applied preinstall cleanup receipt directory')
+    args = parser.parse_args(argv)
     try:
-        print(json.dumps(initialize(args.skip_deps, args.archive), ensure_ascii=False, indent=2))
+        print(json.dumps(initialize(args.skip_deps, args.archive, args.migration_backup), ensure_ascii=True, indent=2))
     except Exception as exc:
         print(json.dumps({'status': 'failed', 'error_type': type(exc).__name__,
                           'message': str(exc)[:500]}, ensure_ascii=False))
         raise SystemExit(1)
+
+
+if __name__ == '__main__':
+    main()

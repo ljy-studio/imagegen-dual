@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import shutil
 import threading
 import zipfile
 from PIL import Image
@@ -58,7 +59,7 @@ def verify(archive):
             z.extractall(root)
         skill = root / 'imagegen-dual'
         exe = skill / 'imagegen-dual.exe'
-        home = root / 'isolated-home'
+        home = root.parent / (root.name + '-isolated-home')
         state = home / '.imagegen-dual'
         state.mkdir(parents=True)
         env = dict(os.environ, USERPROFILE=str(home), HOME=str(home),
@@ -73,7 +74,27 @@ def verify(archive):
             return json.loads(output)
 
         assert run('self-test')['status'] == 'success'
-        assert run('install')['mode'] == 'portable'
+        old = root / 'retired-api-skill'
+        old.mkdir()
+        (old / 'SKILL.md').write_text('external API image-only skill')
+        rules = root / 'Agent.md'
+        rules.write_text('Keep general rules.\nOld API constraint.\n')
+        planfile = root / 'migration.json'
+        run('migrate', 'scan', '--skills-root', str(root), '--rules', str(rules), '--output', str(root.parent / (root.name + '-plan.json')))
+        external_plan = root.parent / (root.name + '-plan.json')
+        try:
+            plan = json.loads(external_plan.read_text())
+        finally:
+            external_plan.unlink()
+        plan['reviewed'] = True
+        selected = next(x for x in plan['inventory'] if Path(x['path']) == old)
+        plan['remove_skills'] = [{**selected, 'kind': 'external_image_api_only', 'reason': 'test-only image API skill'}]
+        plan['edit_rules'][0]['remove_text'] = ['Old API constraint.\r\n' if b'\r\n' in rules.read_bytes() else 'Old API constraint.\n']
+        planfile.write_text(json.dumps(plan))
+        receipt = run('migrate', 'apply', '--plan', str(planfile))
+        assert not old.exists()
+        assert rules.read_text() == 'Keep general rules.\n'
+        assert run('install', '--migration-backup', receipt['backup'])['mode'] == 'portable'
         assert (state / 'install.json').is_file()
         assert run('update', '--auto')['status'] == 'portable_manual_update'
         server = ThreadingHTTPServer(('127.0.0.1', 0), Handler)
@@ -95,10 +116,14 @@ def verify(archive):
                 assert result['request_content_type'] == 'application/json'
                 assert run('diagnose', '--task', result['task'])['request_content_type'] == 'application/json'
             assert posts == models
+            run('migrate', 'restore', '--backup', receipt['backup'])
+            assert old.exists()
+            assert 'Old API constraint.' in rules.read_text()
         finally:
             server.shutdown()
             thread.join()
             server.server_close()
+            shutil.rmtree(home)
     print(json.dumps({'status': 'success', 'python_git_on_path': False,
                       'isolated_install': True, 'loopback_edit_posts': len(posts),
                       'real_api_requests': 0, 'models': models}))

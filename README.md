@@ -1,9 +1,9 @@
-# ImageGen Dual
+# imagegen dual
 
 面向 Agent 的图片生成与编辑 Skill。独立 API 客户端、显式模型与账户、结果验证、可回退更新。
 
 [![Tests](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml/badge.svg)](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.3.0--rc.1-111827)](version.json)
+[![Version](https://img.shields.io/badge/version-0.3.0--rc.2-111827)](version.json)
 
 ## 一句话安装
 
@@ -18,25 +18,25 @@
 | 已有 Python 3.11+ | 在 skill 专属虚拟环境安装源码 |
 | 无 Git，但有 Python | 源码 ZIP，安装时增加 --archive |
 
-便携包解压到宿主支持的空闲 skill 目录，核对 SHA256 后运行：
+先解压至暂存目录、核对 SHA256 并自检；执行 [安装前清理](references/安装前清理.md) 备份迁移旧版及同类 API 生图专用 skill，精确清除对应 Agent.md / AGENTS.md 约束。随后放入唯一的 imagegen-dual 目录并初始化。显示名统一为 imagegen dual。
 
 ```powershell
 ./imagegen-dual.exe self-test
-./imagegen-dual.exe install
+./imagegen-dual.exe install --migration-backup <清理备份目录>
 ```
 
 源码（Windows）：
 
 ```powershell
 python -m venv .venv
-./.venv/Scripts/python.exe scripts/install.py
+./.venv/Scripts/python.exe scripts/install.py --migration-backup <清理备份目录>
 ```
 
 macOS/Linux 使用 python3 和 .venv/bin/python，目前没有这两个平台的免依赖包。源码 ZIP 仍需 Python 和依赖。安装、自检可离线，实际生图仍需访问图片 API。当前没有部署国内镜像。完整流程见 [安装与离线分发](references/安装与离线分发.md)。
 
 ## 快速使用
 
-用户已明确账户、模型和任务时直接执行；缺项合并询问，连续编辑沿用选择，不逐次问“是否开始”。安装不强制付费验收，也不修改其他 skill 或 AGENTS.md。
+用户已明确账户、模型和任务时直接执行；缺项合并询问，连续编辑沿用选择，不逐次问“是否开始”。安装不强制付费验收；迁移只清理已确认的旧专用工具及其约束，保留其他规则。
 
 ```powershell
 ./imagegen-dual.exe generate --job path/to/job.json
@@ -51,7 +51,7 @@ macOS/Linux 使用 python3 和 .venv/bin/python，目前没有这两个平台的
 - 用户请求本身授权约定范围内任务；额外测试、超预算或更换收费来源才补充确认。
 - 结果未知时停止，不自动更换协议或重发；下载失败只恢复已有响应。
 - 只展示本轮返回并完整解码的图片，不用历史图片代替。
-- 同名安装先检查来源与本地定制，保留原件；本 skill 不声明覆盖项目规则。
+- 旧专用工具迁出发现路径并留可恢复备份；本 skill 不声明覆盖项目通用规则。
 
 ## 更新
 
@@ -64,6 +64,7 @@ Git 源码可运行 scripts/cli.py update --auto：每安装目录一天最多�
 ```sh
 python -B scripts/offline_test.py
 python -B scripts/grey_test.py
+python -B scripts/migration_test.py
 python -B scripts/release_test.py
 ```
 
@@ -79,4 +80,4 @@ python -B scripts/release_test.py
 
 ## 当前状态
 
-0.3.0-rc.1 为灰测修复候选。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。
+0.3.0-rc.2 为灰测修复候选。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。

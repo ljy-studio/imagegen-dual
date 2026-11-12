@@ -9,6 +9,7 @@ import update as u
 import accounts
 import json
 import sqlite3
+import migrate
 
 
 class Tests(unittest.TestCase):
@@ -53,7 +54,8 @@ class Tests(unittest.TestCase):
 
     def test_update_real_git(self):
         with tempfile.TemporaryDirectory() as temp:
-            base = Path(temp); source = base/'source'; installed = base/'installed'; state = base/'state'
+            base = Path(temp); source = base/'source'; installed = base/'skills/imagegen-dual'; state = base/'state'
+            installed.parent.mkdir()
             shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git', '.venv', '.build-venv', 'build', 'dist'))
             def git(*args, cwd=source):
                 return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
@@ -79,7 +81,8 @@ class Tests(unittest.TestCase):
 
     def test_install(self):
         with tempfile.TemporaryDirectory() as temp:
-            base = Path(temp); source = base/'source'; installed = base/'installed'; state = base/'state'
+            base = Path(temp); source = base/'source'; installed = base/'skills/imagegen-dual'; state = base/'state'
+            installed.parent.mkdir()
             shutil.copytree(u.ROOT, source, ignore=shutil.ignore_patterns('__pycache__', '.git', '.venv', '.build-venv', 'build', 'dist'))
             def git(*args, cwd=source):
                 return subprocess.check_output(['git', *args], cwd=cwd, stderr=subprocess.DEVNULL, text=True).strip()
@@ -91,7 +94,10 @@ class Tests(unittest.TestCase):
             spec=importlib.util.spec_from_file_location('candidate_install',installed/'scripts/install.py')
             installer=importlib.util.module_from_spec(spec); spec.loader.exec_module(installer)
             installer.STATE=state
-            result=installer.initialize(skip_deps=True)
+            plan=migrate.inventory([installed.parent], [])
+            plan['reviewed']=True
+            receipt=migrate.apply(plan, state)
+            result=installer.initialize(skip_deps=True, migration_backup=receipt['backup'])
             self.assertEqual(result['repository'],trusted)
             self.assertTrue((state/'install.json').is_file())
 

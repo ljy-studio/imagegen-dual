@@ -22,7 +22,10 @@ def main():
         print(json.dumps(self_test()))
     elif command == 'install':
         import install
-        print(json.dumps(install.initialize(skip_deps='--skip-deps' in sys.argv, archive='--archive' in sys.argv)))
+        install.main(sys.argv[2:])
+    elif command == 'migrate':
+        import migrate
+        migrate.main(sys.argv[2:])
     elif command == 'update':
         import update
         print(json.dumps(update.update(auto='--auto' in sys.argv)))

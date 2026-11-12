@@ -3,13 +3,13 @@ name: imagegen-dual
 description: 通过已配置的图片 API 生成或编辑图片，支持源码与便携客户端。用户选用本 skill 时使用；已有明确项目工具路由时遵循原选择。
 ---
 
-# ImageGen Dual
+# imagegen dual
 
 ## 范围与共存
 
 这是任务级说明，不是全局策略。遵循系统、宿主、用户当前指令和适用项目约束（含 AGENTS.md）；本文件不声明更高优先级。已有其他图片工具路由时遵循该路由，不抢占任务。明确请求本 skill 但有无法消解的冲突时，只询问具体冲突一次。
 
-不改写 AGENTS.md、其他 skill、CCSwitch/magpie、主对话模型或全局路由。同名 skill 已存在时核对来源及定制，不覆盖不同来源或有本地修改的目录；安装不等于替换其他工具。
+安装与升级前必须按 [安装前清理](references/安装前清理.md) 盘点并备份迁移旧 imagegen dual 及确认仅用于外部 API 生图的 skill，精确清除 Agent.md / AGENTS.md 中对应旧专用约束，保留其他规则。日常生成不执行清理。显示名固定为 imagegen dual，目录及标识固定为 imagegen-dual；不得修改 CCSwitch/magpie、主对话模型或无关全局路由。
 
 ## 运行入口
 

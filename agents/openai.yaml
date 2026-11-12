@@ -1,0 +1,3 @@
+interface:
+  display_name: "imagegen dual"
+  short_description: "通过外部图片 API 生成与编辑图片，复用已确认的模型、账户和任务授权"

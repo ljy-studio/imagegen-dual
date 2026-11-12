@@ -12,6 +12,11 @@ import update
 
 
 class Tests(unittest.TestCase):
+    def setUp(self):
+        mock = patch.object(install, "verify_migration", return_value="test-receipt")
+        mock.start()
+        self.addCleanup(mock.stop)
+
     def test_offline_update_backs_off(self):
         calls = [str(update.ROOT), "", "https://github.com/ljy-studio/imagegen-dual.git", "old", OSError("offline")]
         with tempfile.TemporaryDirectory() as temp, patch.object(update, "STATE", Path(temp)), patch.object(update, "git", side_effect=calls) as git:
