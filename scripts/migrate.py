@@ -67,7 +67,8 @@ def inventory(roots, rules):
         path = Path(name)
         if path.name.lower() not in RULE_NAMES or not path.is_file():
             raise ValueError('explicit_AGENT_or_AGENTS_file_required')
-        rule_items.append({'path': name, 'sha256': sha(path.read_bytes()), 'remove_text': []})
+        rule_items.append({'path': name, 'sha256': sha(path.read_bytes()), 'remove_text': [],
+                           'decision': 'review_required', 'reason': ''})
     return {'schema': 1, 'reviewed': False, 'skills_roots': roots, 'rule_files': files,
             'inventory': items, 'remove_skills': [], 'edit_rules': rule_items}
 
@@ -77,6 +78,30 @@ def preflight(plan):
         raise ValueError('reviewed_migration_plan_required')
     roots = {direct(p) for p in plan['skills_roots']}
     rules = {direct(p) for p in plan['rule_files']}
+    # A checked box must not turn an unreviewed inventory into an empty cleanup.
+    current = inventory(roots, rules)
+    snapshots = {direct(x["path"]): x for x in plan["inventory"]}
+    live = {direct(x["path"]): x for x in current["inventory"]}
+    if set(snapshots) != set(live) or len(snapshots) != len(plan["inventory"]):
+        raise ValueError("inventory_scope_changed_rescan_required")
+    removals = {direct(x["path"]) for x in plan["remove_skills"]}
+    for path, item in snapshots.items():
+        if item.get("decision") not in ("remove", "keep") or not str(item.get("reason", "")).strip():
+            raise ValueError("unreviewed_skill_requires_individual_decision")
+        if not item.get("sha256") or item["sha256"] != live[path].get("sha256"):
+            raise ValueError("skill_changed_since_review")
+        if (item["decision"] == "remove") != (path in removals):
+            raise ValueError("inventory_decision_and_removal_disagree")
+        if item["decision"] == "keep" and item.get("kind") != "unrelated":
+            raise ValueError("retired_image_skill_must_not_be_kept")
+    if not removals.issubset(snapshots):
+        raise ValueError("removal_missing_from_inventory")
+    if {direct(x["path"]) for x in plan["edit_rules"]} != rules:
+        raise ValueError("unreviewed_rule_file_missing")
+    for item in plan["edit_rules"]:
+        required = "edit" if item["remove_text"] else "keep"
+        if item.get("decision") != required or not str(item.get("reason", "")).strip():
+            raise ValueError("unreviewed_rule_requires_reason_and_decision")
     selected, edits, seen = [], [], set()
     for item in plan['remove_skills']:
         path = direct(item['path'])
@@ -136,7 +161,9 @@ def apply(plan, state=None):
     backup.mkdir(parents=True, mode=0o700)
     manifest = {'schema': 1, 'status': 'preparing', 'skills': [], 'rules': [],
                 'skills_roots': sorted(str(p) for p in roots),
-                'rule_files': plan['rule_files']}
+                'rule_files': plan['rule_files'],
+                'review_version': 2, 'inventory_review': plan['inventory'],
+                'rule_review': plan['edit_rules']}
     journal = backup / 'manifest.json'
 
     def save():
@@ -175,7 +202,8 @@ def apply(plan, state=None):
         save()
         raise
     return {'status': 'migration_complete', 'backup': str(backup),
-            'removed_skills': len(selected), 'edited_rule_files': len(edits)}
+            'removed_skills': len(selected), 'edited_rule_files': len(edits),
+            'reviewed_skills': len(plan['inventory']), 'reviewed_rule_files': len(plan['edit_rules'])}
 
 
 def restore(backup):

@@ -96,6 +96,8 @@ class Tests(unittest.TestCase):
             installer.STATE=state
             plan=migrate.inventory([installed.parent], [])
             plan['reviewed']=True
+            for item in plan['inventory']:
+                item.update(decision='keep', kind='unrelated', reason='new release fixture placed before inspection')
             receipt=migrate.apply(plan, state)
             result=installer.initialize(skip_deps=True, migration_backup=receipt['backup'])
             self.assertEqual(result['repository'],trusted)

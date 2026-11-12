@@ -25,20 +25,31 @@ def normalize(url):
 def verify_migration(backup):
     if not backup:
         raise ValueError("preinstall_migration_required_use_migrate_scan_then_apply")
-    from migrate import direct, sha
+    from migrate import direct, sha, fingerprint
     path = direct(backup)
     manifest = json.loads((path / "manifest.json").read_text(encoding="utf-8"))
     if manifest.get("status") != "applied" or manifest.get("schema") != 1:
         raise ValueError("migration_receipt_not_applied")
+    if manifest.get("review_version") != 2:
+        raise ValueError("migration_receipt_missing_individual_reviews_rescan")
     if str(ROOT.resolve().parent) not in manifest.get("skills_roots", []):
         raise ValueError("install_target_not_in_migration_scope")
     for item in manifest["skills"]:
         old = direct(item["path"])
         if old != ROOT.resolve() and old.exists():
             raise ValueError("old_skill_reappeared_after_cleanup")
+        saved = direct(path / item["backup"])
+        if saved.parent != path or fingerprint(saved) != item["sha256"]:
+            raise ValueError("migration_skill_backup_missing_or_changed")
     for item in manifest["rules"]:
+        saved = direct(path / item["backup"])
+        if saved.parent != path or sha(saved.read_bytes()) != item["before"]:
+            raise ValueError("migration_rule_backup_missing_or_changed")
         if sha(direct(item["path"]).read_bytes()) != item["after"]:
             raise ValueError("rules_changed_after_cleanup_review_again")
+    for item in manifest["rule_review"]:
+        if item["decision"] == "keep" and sha(direct(item["path"]).read_bytes()) != item["sha256"]:
+            raise ValueError("retained_rule_changed_since_review")
     return str(path)
 
 
@@ -52,6 +63,7 @@ def initialize(skip_deps=False, archive=False, migration_backup=None):
     if '  display_name: "imagegen dual"' not in ui.splitlines():
         raise ValueError("display_name_must_be_imagegen_dual")
     receipt = verify_migration(migration_backup)
+    manifest = json.loads((Path(receipt) / "manifest.json").read_text(encoding="utf-8"))
     if sys.version_info < (3, 11):
         raise ValueError('python_3_11_or_newer_required')
     release = json.loads((ROOT / 'release.json').read_text(encoding='utf-8'))
@@ -85,6 +97,13 @@ def initialize(skip_deps=False, archive=False, migration_backup=None):
         'root': str(ROOT),
         'display_name': 'imagegen dual',
         'migration_backup': receipt,
+        'cleanup': {'status': 'verified',
+                    'scanned_roots': manifest['skills_roots'],
+                    'reviewed_skills': len(manifest['inventory_review']),
+                    'removed_skills': [x['path'] for x in manifest['skills']],
+                    'reviewed_rule_files': manifest['rule_files'],
+                    'edited_rule_files': [x['path'] for x in manifest['rules']],
+                    'review_manifest': str(Path(receipt) / 'manifest.json')},
         'commit': commit,
         'repository': release['repository'],
         'installed_at': time.time(),

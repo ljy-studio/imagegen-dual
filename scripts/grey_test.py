@@ -13,7 +13,10 @@ import update
 
 class Tests(unittest.TestCase):
     def setUp(self):
-        mock = patch.object(install, "verify_migration", return_value="test-receipt")
+        receipt_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(receipt_dir.cleanup)
+        (Path(receipt_dir.name) / "manifest.json").write_text(json.dumps({"skills_roots": [], "inventory_review": [], "skills": [], "rule_files": [], "rules": []}))
+        mock = patch.object(install, "verify_migration", return_value=receipt_dir.name)
         mock.start()
         self.addCleanup(mock.stop)
 

@@ -10,6 +10,20 @@ import install
 
 
 class Tests(unittest.TestCase):
+    def test_blank_cleanup_cannot_skip_existing_skills(self):
+        plan = m.inventory([self.skills], [self.rules])
+        plan["reviewed"] = True
+        with self.assertRaisesRegex(ValueError, "unreviewed_skill"):
+            m.apply(plan, self.state)
+        self.assertTrue(self.old.exists())
+
+    def test_omitted_inventory_entry_is_rejected(self):
+        plan = m.inventory([self.skills], [self.rules])
+        plan["reviewed"] = True
+        plan["inventory"] = []
+        with self.assertRaisesRegex(ValueError, "inventory_scope_changed"):
+            m.apply(plan, self.state)
+
     def setUp(self):
         t = tempfile.TemporaryDirectory()
         self.addCleanup(t.cleanup)
@@ -29,9 +43,12 @@ class Tests(unittest.TestCase):
         self.rules.write_bytes(self.before)
         self.plan = m.inventory([self.skills], [self.rules])
         self.plan['reviewed'] = True
+        for item in self.plan['inventory']:
+            item.update(decision='remove' if Path(item['path']) == self.old else 'keep', kind='old_imagegen_dual' if Path(item['path']) == self.old else 'unrelated', reason='reviewed test fixture purpose')
         found = next(x for x in self.plan['inventory'] if Path(x['path']) == self.old)
         self.plan['remove_skills'] = [{**found, 'kind': 'old_imagegen_dual', 'reason': 'old version inspected'}]
         self.plan['edit_rules'][0]['remove_text'] = [self.block]
+        self.plan['edit_rules'][0].update(decision='edit', reason='retired API-specific rule')
         self.state = self.base / 'state'
 
     def test_cleanup_and_restore(self):
@@ -78,10 +95,12 @@ class Tests(unittest.TestCase):
             install.verify_migration(None)
 
     def test_reviewed_empty_inventory_is_valid(self):
-        plan = m.inventory([self.skills], [])
+        empty = self.base / 'empty-skills'
+        empty.mkdir()
+        plan = m.inventory([empty], [])
         plan['reviewed'] = True
         result = m.apply(plan, self.state)
-        with patch.object(install, 'ROOT', self.skills / 'imagegen-dual'):
+        with patch.object(install, 'ROOT', empty / 'imagegen-dual'):
             self.assertEqual(install.verify_migration(result['backup']), result['backup'])
 
     def test_failure_restores_already_moved_skill(self):

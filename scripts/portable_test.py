@@ -87,6 +87,9 @@ def verify(archive):
         finally:
             external_plan.unlink()
         plan['reviewed'] = True
+        for item in plan['inventory']:
+            item.update(decision='remove', kind='external_image_api_only', reason='image-only test fixture')
+        plan['edit_rules'][0].update(decision='edit', reason='old image-only constraint')
         selected = next(x for x in plan['inventory'] if Path(x['path']) == old)
         plan['remove_skills'] = [{**selected, 'kind': 'external_image_api_only', 'reason': 'test-only image API skill'}]
         plan['edit_rules'][0]['remove_text'] = ['Old API constraint.\r\n' if b'\r\n' in rules.read_bytes() else 'Old API constraint.\n']
