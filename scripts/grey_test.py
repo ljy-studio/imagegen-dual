@@ -19,6 +19,80 @@ class Tests(unittest.TestCase):
         mock = patch.object(install, "verify_migration", return_value=receipt_dir.name)
         mock.start()
         self.addCleanup(mock.stop)
+        state_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(state_dir.cleanup)
+        state = patch.object(c, "STATE", Path(state_dir.name))
+        state.start()
+        self.addCleanup(state.stop)
+
+    def edit_job(self, temp, model, **extra):
+        image = Path(temp) / "input.png"
+        c.Image.new("RGB", (4, 4)).save(image)
+        return dict({"model": model, "prompt": "edit", "image": str(image), "output_dir": temp}, **extra)
+
+    def test_known_failing_edit_model_is_blocked_before_post(self):
+        model = "gpt-image-2.5-sunburst"
+        routes = [{"endpoint": c.DIRECT[0], "models": [model, "az/gpt-image-2.5-sunburst"]}]
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
+            with self.assertRaises(c.EditUnsupported) as error:
+                c.generate(self.edit_job(temp, model), "fake", routes, "edit")
+            factory.assert_not_called()
+            self.assertEqual(error.exception.detail["posts_sent"], 0)
+            self.assertEqual(error.exception.detail["edit"], "failing")
+            self.assertIn("az/gpt-image-2.5-sunburst", error.exception.detail["edit_unverified_models"])
+
+    def test_generate_is_not_blocked_for_edit_failing_model(self):
+        model = "gpt-image-2.5-sunburst"
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
+            post = factory.return_value.__enter__.return_value.post
+            post.return_value.status_code = 400
+            post.return_value.headers = {}
+            post.return_value.json.return_value = {"error": {"message": "bad"}}
+            c.generate({"model": model, "prompt": "p", "output_dir": temp}, "fake", [{"endpoint": c.DIRECT[0], "models": [model]}])
+            self.assertEqual(post.call_count, 1)
+
+    def test_force_and_profile_override_allow_one_post(self):
+        model = "gpt-image-2.5-sunburst"
+        routes = [{"endpoint": c.DIRECT[0], "models": [model]}]
+        for job_extra, overrides in (({"force_edit": True}, None), ({}, {model: True})):
+            with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
+                post = factory.return_value.__enter__.return_value.post
+                post.return_value.status_code = 400
+                post.return_value.headers = {}
+                post.return_value.json.return_value = {"error": {"message": "bad"}}
+                c.generate(self.edit_job(temp, model, **job_extra), "fake", routes, "edit", overrides)
+                self.assertEqual(post.call_count, 1)
+
+    def test_unsupported_response_is_remembered(self):
+        routes = [{"endpoint": c.DIRECT[0], "models": ["gpt-image-2"]}]
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
+            post = factory.return_value.__enter__.return_value.post
+            post.return_value.status_code = 400
+            post.return_value.headers = {"x-request-id": "req-1"}
+            post.return_value.json.return_value = {"error": {"message": "This model does not support image edits"}}
+            first = c.generate(self.edit_job(temp, "gpt-image-2"), "fake", routes, "edit")
+            self.assertEqual(first["edit_support"], "unsupported")
+            with self.assertRaises(c.EditUnsupported):
+                c.generate(self.edit_job(temp, "gpt-image-2"), "fake", routes, "edit")
+            self.assertEqual(post.call_count, 1)
+
+    def test_single_500_does_not_block_but_repeat_does(self):
+        routes = [{"endpoint": c.DIRECT[0], "models": ["gpt-image-2"]}]
+        with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
+            post = factory.return_value.__enter__.return_value.post
+            post.return_value.status_code = 500
+            post.return_value.headers = {}
+            post.return_value.json.return_value = {"error": {"message": "Service temporarily unavailable"}}
+            c.generate(self.edit_job(temp, "gpt-image-2"), "fake", routes, "edit")
+            c.generate(self.edit_job(temp, "gpt-image-2"), "fake", routes, "edit")
+            with self.assertRaises(c.EditUnsupported):
+                c.generate(self.edit_job(temp, "gpt-image-2"), "fake", routes, "edit")
+            self.assertEqual(post.call_count, 2)
+
+    def test_catalog_does_not_apply_to_custom_gateway(self):
+        model = "gpt-image-2.5-sunburst"
+        self.assertEqual(c.edit_support(model, "http://127.0.0.1:9000/v1")[0], "unknown")
+        self.assertEqual(c.edit_support(model, c.DIRECT[0], {model: False})[0], "unsupported")
 
     def test_offline_update_backs_off(self):
         calls = [str(update.ROOT), "", "https://github.com/ljy-studio/imagegen-dual.git", "old", OSError("offline")]

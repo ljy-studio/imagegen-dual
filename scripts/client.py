@@ -18,6 +18,9 @@ from PIL import Image
 
 STATE = Path.home() / '.imagegen-dual'
 DIRECT = ['https://api.gaoxin.net.cn/v1', 'https://api-sh.gaoxin.net.cn/v1']
+EDIT_TTL = 7 * 86400
+EDIT_FAILURE_LIMIT = 2
+UNSUPPORTED_HINTS = ('not support', 'unsupported', 'not implemented', '不支持')
 
 
 def safe(value, key=None):
@@ -58,6 +61,73 @@ def session():
 class SelectionRequired(ValueError):
     def __init__(self, field, options):
         self.field, self.options = field, options
+
+
+class EditUnsupported(ValueError):
+    def __init__(self, detail):
+        self.detail = detail
+
+
+def catalog():
+    return json.loads((ROOT / 'capabilities.json').read_text(encoding='utf-8'))
+
+
+def observations():
+    try:
+        data = json.loads((STATE / 'edit-observations.json').read_text(encoding='utf-8'))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
+def observe_edit(endpoint, model, outcome, http_status=None, request_id=None):
+    """Remember real edit outcomes per gateway host and model. Never stores prompts or images."""
+    key = str(urlparse(endpoint).hostname) + '|' + model
+    data = observations()
+    failures = 0 if outcome == 'success' else data.get(key, {}).get('failures', 0) + 1
+    data[key] = {'outcome': outcome, 'failures': failures, 'http_status': http_status,
+                 'request_id': request_id, 'updated_at': time.time()}
+    try:
+        STATE.mkdir(parents=True, exist_ok=True)
+        temporary = STATE / ('edit-observations.' + uuid.uuid4().hex + '.tmp')
+        temporary.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+        temporary.replace(STATE / 'edit-observations.json')
+    except OSError:
+        pass
+
+
+def edit_support(model, endpoint, overrides=None):
+    """Return (state, source, evidence). Explicit profile setting, then fresh local results, then catalog."""
+    host = urlparse(endpoint).hostname
+    if isinstance(overrides, dict) and isinstance(overrides.get(model), bool):
+        return ('supported' if overrides[model] else 'unsupported'), 'profile_config', None
+    item = observations().get(str(host) + '|' + model)
+    if isinstance(item, dict) and time.time() - item.get('updated_at', 0) < EDIT_TTL:
+        if item.get('outcome') == 'success':
+            return 'supported', 'local_observation', item
+        if item.get('outcome') == 'unsupported':
+            return 'unsupported', 'local_observation', item
+        if item.get('failures', 0) >= EDIT_FAILURE_LIMIT:
+            return 'failing', 'local_observation', item
+    known = catalog()
+    # Catalog facts describe one upstream only; a custom gateway stays unknown.
+    if host in known.get('edit_applies_to_hosts', []):
+        entry = known['models'].get(model, {})
+        state = {True: 'supported', False: 'unsupported', 'failing': 'failing'}.get(entry.get('edit'))
+        if state:
+            return state, 'catalog', entry.get('edit_evidence')
+    return 'unknown', 'none', None
+
+
+def edit_overview(available, overrides=None):
+    known = catalog()['models']
+    result = {}
+    for route in available:
+        for model in route['models']:
+            if model in known and model not in result:
+                state, source, _ = edit_support(model, route['endpoint'], overrides)
+                result[model] = {'edit': state, 'source': source}
+    return result
 
 
 def profiles(cfg):
@@ -164,7 +234,7 @@ def artifact(task, response):
     return {'status': 'success', 'path': str(path), 'validation': info}
 
 
-def generate(job, key, available, operation='generate'):
+def generate(job, key, available, operation='generate', edit_models=None):
     model = job.get('model')
     if not isinstance(model, str) or not model.strip():
         raise SelectionRequired('model', sorted({m for x in available for m in x['models']}))
@@ -187,6 +257,14 @@ def generate(job, key, available, operation='generate'):
                 raise ValueError('edit_data_url_exceeds_20MiB_choose_supported_multipart')
         elif image_info['bytes'] >= 50 * 1024 * 1024:
             raise ValueError('edit_file_must_be_less_than_50MiB')
+        if not job.get('force_edit'):
+            state, source, evidence = edit_support(model, eligible[0], edit_models)
+            if state in ('unsupported', 'failing'):
+                overview = edit_overview(available, edit_models)
+                raise EditUnsupported({
+                    'model': model, 'edit': state, 'source': source, 'evidence': evidence, 'posts_sent': 0,
+                    'edit_supported_models': sorted(m for m, v in overview.items() if v['edit'] == 'supported'),
+                    'edit_unverified_models': sorted(m for m, v in overview.items() if v['edit'] == 'unknown')})
     task = Path(job.get('output_dir', 'outputs/imagegen')).resolve() / uuid.uuid4().hex
     task.mkdir(parents=True)
     record = {'status': 'started', 'operation': operation, 'task': str(task), 'request_model': model, 'response_model': None, 'attempts': []}
@@ -226,6 +304,16 @@ def generate(job, key, available, operation='generate'):
                 record['error'] = error_detail(r, key)
                 if image and 'numeric literal' in record['error'].get('message', ''):
                     record['diagnosis'] = 'Possible request encoding/parser mismatch; verify gateway Content-Type handling. No retry sent.'
+                if image:
+                    message = record['error'].get('message', '').lower()
+                    outcome = None
+                    if r.status_code in (404, 405, 501) or any(hint in message for hint in UNSUPPORTED_HINTS):
+                        outcome = 'unsupported'
+                    elif r.status_code >= 500:
+                        outcome = 'server_error'
+                    if outcome:
+                        observe_edit(base, model, outcome, r.status_code, record['error'].get('request_id'))
+                        record['edit_support'] = edit_support(model, base, edit_models)[0]
                 record['status'] = ('rejected' if r.status_code in (400, 401, 402, 403, 404, 422, 429) else 'result_unknown')
                 if r.status_code == 429:
                     record['retry_after'] = r.headers.get('Retry-After')
@@ -241,6 +329,8 @@ def generate(job, key, available, operation='generate'):
             except (ValueError, AttributeError):
                 record['status'] = 'result_unknown'
                 break
+            if image:
+                observe_edit(base, model, 'success', 200)
             record['status'] = 'artifact_failed'
             record.update(artifact(task, response))
             record.pop('error', None)
@@ -285,18 +375,23 @@ def main():
             cfg, key, bases = load(a.profile or job.get('profile'))
             available = routes(key, bases)
             if a.command == 'models':
-                catalog = json.loads((ROOT / 'capabilities.json').read_text(encoding='utf-8'))
+                known = catalog()['models']
+                overview = edit_overview(available, cfg.get('edit_models'))
                 result = {'profile': cfg['selected_profile'], 'routes': available,
-                          'image_models': {m: catalog['models'][m] for m in sorted({m for x in available for m in x['models']}) if m in catalog['models']}}
+                          'image_models': {m: dict(known[m], edit_effective=overview[m]['edit'], edit_source=overview[m]['source'])
+                                           for m in sorted(overview)}}
             else:
                 if a.command == 'edit':
                     job.setdefault('edit_transport', cfg.get('edit_transport', 'json'))
-                result = generate(job, key, available, a.command)
+                result = generate(job, key, available, a.command, cfg.get('edit_models'))
             result['profile'] = cfg['selected_profile']
         print(json.dumps(result, ensure_ascii=True, indent=2))
     except SelectionRequired as exc:
         print(json.dumps({'status': 'selection_required', 'field': exc.field, 'options': exc.options}, ensure_ascii=True))
         raise SystemExit(2)
+    except EditUnsupported as exc:
+        print(json.dumps(dict(exc.detail, status='edit_unsupported'), ensure_ascii=True, indent=2))
+        raise SystemExit(3)
     except RouteError as exc:
         print(json.dumps({'status': 'failed', 'stage': 'models', 'errors': exc.attempts}, ensure_ascii=True))
         raise SystemExit(1)

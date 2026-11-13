@@ -1,12 +1,13 @@
 {
   "schema": 1,
-  "source": "Platform owner supplied model IDs; edit and parameter support unverified",
+  "source": "Platform owner supplied model IDs. edit: true = verified, false = upstream confirmed unsupported, failing = repeated real failures, unknown = untested.",
+  "edit_applies_to_hosts": ["api.gaoxin.net.cn", "api-sh.gaoxin.net.cn"],
   "models": {
     "az/gpt-image-2": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
     "az/gpt-image-2.5-flare": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
     "az/gpt-image-2.5-sunburst": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "non_reverse_proxy"},
     "gpt-image-2": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"},
     "gpt-image-2.5-flare": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"},
-    "gpt-image-2.5-sunburst": {"generate": true, "edit": "unknown", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"}
+    "gpt-image-2.5-sunburst": {"generate": true, "edit": "failing", "edit_evidence": "2026-11-12: 4 edit requests (JSON and multipart, two accounts) returned HTTP 500; generate succeeded on the same route.", "quality": "unknown", "concurrency_limit": "unknown", "service": "reverse_proxy"}
   }
 }

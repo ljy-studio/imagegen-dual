@@ -22,6 +22,23 @@
 
 invalid character '-' in numeric literal 与 multipart 边界被 JSON 解析的情况一致；也可能来自网关内部转换，单凭错误无法确认。record.json 保存请求路径和 Content-Type，不保存请求图片内容。被拒绝不自动换协议再发一次。
 
+## 模型是否支持 edit
+
+同一接口下，不同模型的上游对 edit 的支持不同，文生图成功不代表能改图。<client> models --profile <ID> 为每个图片模型返回 edit_effective 和 edit_source：
+
+| edit_effective | 含义 | 处理 |
+|---|---|---|
+| supported | 本机实际改图成功过，或已确认支持 | 直接执行 |
+| unknown | 尚未验证 | 可按用户请求尝试一次，结果会自动记录 |
+| failing | 多次真实请求均返回服务端错误 | 不发请求，向用户说明并给出替代项 |
+| unsupported | 上游明确不支持，或用户在配置中声明不支持 | 不发请求，向用户说明并给出替代项 |
+
+判定顺序：profile 配置中的 edit_models（如 {"edit_models": {"模型ID": false}}）优先，其次是本机 7 天内的实际调用结果，最后是随包的 capabilities.json。capabilities.json 的结论只对其 edit_applies_to_hosts 列出的服务地址有效，自定义网关一律按 unknown 处理。
+
+对 unsupported 或 failing 的模型执行 edit 时，客户端在发送前返回 status=edit_unsupported、posts_sent=0（退出码 3），并列出同一来源下 edit_supported_models 和 edit_unverified_models。此时没有请求和费用。把这些候选告诉用户，由用户选择换模型改图、重新生成或停止；不自动换模型，不把改图请求改成文生图。
+
+实际调用结果自动写入 ~/.imagegen-dual/edit-observations.json，只含服务地址、模型、状态码和请求编号：改图成功记为支持；404、405、501 或明确的“不支持”提示记为不支持；单次 5xx 只计数，连续 2 次才判为 failing，成功一次即清零。上游修复后，可删除该文件中对应条目，或在任务里加 "force_edit": true 由用户明确授权再试一次。
+
 ## 路由与结果
 
 直连探测 api.gaoxin.net.cn 与 api-sh.gaoxin.net.cn；显式网关只访问网关。仅连接建立超时可按范围切换已探测端点；未知 POST 不重发，429 不绕过。原图保持不变，结果写新目录。success 且完整解码后展示；响应无模型就记录未知。capabilities 的 unknown 不代表支持。
