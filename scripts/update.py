@@ -37,10 +37,11 @@ def update(auto=False):
     marker = STATE / ('last-update-check-' + hashlib.sha256(str(ROOT).encode()).hexdigest()[:12])
     if auto and marker.exists() and time.time() - marker.stat().st_mtime < 86400:
         return {'status': 'checked_recently'}
-    remote = cfg['repository']
     branch = cfg.get('branch', 'main')
-    if not remote.startswith('https://') or '@' in remote or '?' in remote or '#' in remote:
-        raise ValueError('public_https_repository_required')
+    trusted = [cfg['repository'], *cfg.get('mirrors', [])]
+    for remote in trusted:
+        if not remote.startswith('https://') or '@' in remote or '?' in remote or '#' in remote:
+            raise ValueError('public_https_repository_required')
     if not branch or branch.startswith('-') or not all(c.isalnum() or c in '/-._' for c in branch):
         raise ValueError('invalid_branch')
     # Reject a parent repository: an installation must be its own checkout.
@@ -52,7 +53,8 @@ def update(auto=False):
         return {'status': 'requires_standalone_git_install'}
     if git('status', '--porcelain', '--untracked-files=all'):
         return {'status': 'local_changes_preserved'}
-    if normalize(git('config', '--get', 'remote.origin.url')) != normalize(remote):
+    # Updates come from whichever trusted copy this checkout was cloned from.
+    if normalize(git('config', '--get', 'remote.origin.url')) not in {normalize(r) for r in trusted}:
         return {'status': 'repository_mismatch'}
     old = git('rev-parse', 'HEAD')
     # Back off failed checks as well: offline users must not wait on every task.

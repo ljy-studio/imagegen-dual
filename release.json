@@ -1,5 +1,6 @@
 {
   "repository": "https://github.com/ljy-studio/imagegen-dual.git",
+  "mirrors": ["https://gitee.com/ljy-studio/imagegen-dual.git"],
   "branch": "main",
   "update_channel": "stable"
 }

@@ -22,6 +22,11 @@ def normalize(url):
     return url.strip().removesuffix('.git').rstrip('/')
 
 
+def trusted_repositories(release):
+    # The primary repository and its published mirrors carry the same commits.
+    return {normalize(u) for u in [release['repository'], *release.get('mirrors', [])]}
+
+
 def verify_migration(backup):
     if not backup:
         raise ValueError("preinstall_migration_required_use_migrate_scan_then_apply")
@@ -69,6 +74,7 @@ def initialize(skip_deps=False, archive=False, migration_backup=None):
     release = json.loads((ROOT / 'release.json').read_text(encoding='utf-8'))
     archive = archive or BUNDLED
     commit = None
+    repository = release['repository']
     if not archive:
         top_path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], cwd=ROOT,
                                            text=True, encoding="utf-8", stderr=subprocess.DEVNULL).strip()
@@ -76,8 +82,9 @@ def initialize(skip_deps=False, archive=False, migration_backup=None):
             raise ValueError('standalone_git_checkout_required_or_use_archive')
         remote = subprocess.check_output(['git', 'config', '--get', 'remote.origin.url'], cwd=ROOT,
                                          text=True, stderr=subprocess.DEVNULL).strip()
-        if normalize(remote) != normalize(release['repository']):
+        if normalize(remote) not in trusted_repositories(release):
             raise ValueError('trusted_release_repository_mismatch')
+        repository = remote
         commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip()
     if BUNDLED:
         from cli import self_test
@@ -105,7 +112,7 @@ def initialize(skip_deps=False, archive=False, migration_backup=None):
                     'edited_rule_files': [x['path'] for x in manifest['rules']],
                     'review_manifest': str(Path(receipt) / 'manifest.json')},
         'commit': commit,
-        'repository': release['repository'],
+        'repository': repository,
         'installed_at': time.time(),
         'python': sys.version.split()[0]
     }

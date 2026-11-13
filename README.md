@@ -9,6 +9,8 @@
 
 从这个仓库安装 imagegen dual skill：https://github.com/ljy-studio/imagegen-dual.git 。
 
+GitHub 无法访问时改用国内镜像：从这个仓库安装 imagegen dual skill：https://gitee.com/ljy-studio/imagegen-dual.git 。
+
 Agent 收到安装请求后，先阅读 [INSTALL.md](INSTALL.md)，按其中流程完成清理、安装、离线验证和结果报告。用户无需复制额外操作细则。
 
 安装验收必须包含清理记录。仅复制文件或通过离线测试，不代表完成安装。便携包请使用 v0.3.0-rc.4 或更新的 Release；rc.1、rc.2 的包不含清理校验修复和 edit 支持判断。
@@ -18,7 +20,7 @@ Agent 收到安装请求后，先阅读 [INSTALL.md](INSTALL.md)，按其中流�
 | 环境 | 方式 |
 | --- | --- |
 | Windows x64，无 Python/Git | 使用便携 ZIP，已包含运行时与依赖 |
-| GitHub 不可访问 | 维护者经可信网盘、内网或文件传输提供同一便携包与 SHA256 |
+| GitHub 不可访问 | 使用 Gitee 镜像仓库或其 Release 中的同一便携包与 SHA256 |
 | 已有 Python 3.11+ | 在 skill 专属虚拟环境安装源码 |
 | 无 Git，但有 Python | 源码 ZIP，安装时增加 --archive |
 
@@ -36,7 +38,7 @@ python -m venv .venv
 ./.venv/Scripts/python.exe scripts/install.py --migration-backup <清理备份目录>
 ```
 
-macOS/Linux 使用 python3 和 .venv/bin/python，目前没有这两个平台的免依赖包。源码 ZIP 仍需 Python 和依赖。安装、自检可离线，实际生图仍需访问图片 API。当前没有部署国内镜像。完整流程见 [安装与离线分发](references/安装与离线分发.md)。
+macOS/Linux 使用 python3 和 .venv/bin/python，目前没有这两个平台的免依赖包。源码 ZIP 仍需 Python 和依赖。安装、自检可离线，实际生图仍需访问图片 API。国内镜像为 https://gitee.com/ljy-studio/imagegen-dual ，与 GitHub 同步发布。完整流程见 [安装与离线分发](references/安装与离线分发.md)。
 
 ## 快速使用
 

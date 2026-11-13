@@ -102,6 +102,12 @@ class Tests(unittest.TestCase):
             result=installer.initialize(skip_deps=True, migration_backup=receipt['backup'])
             self.assertEqual(result['repository'],trusted)
             self.assertTrue((state/'install.json').is_file())
+            mirror='https://gitee.com/ljy-studio/imagegen-dual.git'
+            git('remote','set-url','origin',mirror,cwd=installed)
+            self.assertEqual(installer.initialize(skip_deps=True, migration_backup=receipt['backup'])['repository'],mirror)
+            git('remote','set-url','origin','https://example.org/imagegen-dual.git',cwd=installed)
+            with self.assertRaises(ValueError):
+                installer.initialize(skip_deps=True, migration_backup=receipt['backup'])
 
 
 if __name__=='__main__':
