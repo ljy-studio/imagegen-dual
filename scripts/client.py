@@ -10,6 +10,7 @@ from pathlib import Path
 import time
 from urllib.parse import urlparse
 import uuid
+from media_names import media_kind
 import accounts
 from runtime import ROOT
 
@@ -124,7 +125,8 @@ def edit_overview(available, overrides=None):
     result = {}
     for route in available:
         for model in route['models']:
-            if model in known and model not in result:
+            is_candidate = model in known or media_kind(model) == 'image'
+            if is_candidate and model not in result:
                 state, source, _ = edit_support(model, route['endpoint'], overrides)
                 result[model] = {'edit': state, 'source': source}
     return result
@@ -378,7 +380,9 @@ def main():
                 known = catalog()['models']
                 overview = edit_overview(available, cfg.get('edit_models'))
                 result = {'profile': cfg['selected_profile'], 'routes': available,
-                          'image_models': {m: dict(known[m], edit_effective=overview[m]['edit'], edit_source=overview[m]['source'])
+                          'video_models': sorted({m for route in available for m in route['models']
+                                                 if m not in known and media_kind(m) == 'video'}),
+                          'image_models': {m: dict(known.get(m, {'generate': 'unknown', 'edit': 'unknown', 'quality': 'unknown', 'concurrency_limit': 'unknown', 'service': 'unknown'}), edit_effective=overview[m]['edit'], edit_source=overview[m]['source'])
                                            for m in sorted(overview)}}
             else:
                 if a.command == 'edit':

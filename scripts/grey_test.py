@@ -25,6 +25,24 @@ class Tests(unittest.TestCase):
         state.start()
         self.addCleanup(state.stop)
 
+    def test_models_lists_new_live_candidates_without_claiming_support(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        ids = ["gpt-image-2.6-flare", "gpt-image-2.6-sunburst", "az/gpt-image-next"]
+        routes = [{"endpoint": c.DIRECT[0], "models": ids + ["text-only", "image-embedding", "wan2.6-i2v", "Veo-3.1", "gen4_image_turbo"]}]
+        output = StringIO()
+        with patch("sys.argv", ["client", "models", "--profile", "test"]), patch.object(
+            c, "load", return_value=({"selected_profile": "test"}, "fake", [])
+        ), patch.object(c, "routes", return_value=routes), redirect_stdout(output):
+            c.main()
+        result = json.loads(output.getvalue())
+        self.assertEqual(result["routes"], routes)
+        self.assertEqual(set(result["image_models"]), set(ids + ["gen4_image_turbo"]))
+        self.assertEqual(result["video_models"], ["Veo-3.1", "wan2.6-i2v"])
+        for item in result["image_models"].values():
+            self.assertEqual(item["generate"], "unknown")
+            self.assertEqual(item["edit_effective"], "unknown")
+
     def edit_job(self, temp, model, **extra):
         image = Path(temp) / "input.png"
         c.Image.new("RGB", (4, 4)).save(image)

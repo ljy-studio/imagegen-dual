@@ -3,7 +3,7 @@
 面向 Agent 的图片生成与编辑 Skill。独立 API 客户端、显式模型与账户、结果验证、可回退更新。
 
 [![Tests](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml/badge.svg)](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.3.0--rc.4-111827)](version.json)
+[![Version](https://img.shields.io/badge/version-0.3.0--rc.5-111827)](version.json)
 
 ## 一句话安装
 
@@ -13,7 +13,7 @@ GitHub 无法访问时改用国内镜像：从这个仓库安装 imagegen dual s
 
 Agent 收到安装请求后，先阅读 [INSTALL.md](INSTALL.md)，按其中流程完成清理、安装、离线验证和结果报告。用户无需复制额外操作细则。
 
-安装验收必须包含清理记录。仅复制文件或通过离线测试，不代表完成安装。便携包请使用 v0.3.0-rc.4 或更新的 Release；rc.1、rc.2 的包不含清理校验修复和 edit 支持判断。
+安装验收必须包含清理记录。仅复制文件或通过离线测试，不代表完成安装。便携包请使用 v0.3.0-rc.5 或更新的 Release；rc.1、rc.2 的包不含清理校验修复和 edit 支持判断。
 
 ## 安装方式
 
@@ -86,4 +86,4 @@ python -B scripts/release_test.py
 
 ## 当前状态
 
-0.3.0-rc.4 为灰测修复候选。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。
+0.3.0-rc.5 为灰测修复候选。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。
