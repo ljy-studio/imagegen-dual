@@ -11,6 +11,7 @@ import time
 from urllib.parse import urlparse
 import uuid
 from media_names import media_kind
+import drawing_defaults as defaults
 import accounts
 from runtime import ROOT
 
@@ -350,13 +351,18 @@ def generate(job, key, available, operation='generate', edit_models=None):
 
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument('command', choices=['profiles', 'models', 'generate', 'edit', 'resume', 'status', 'diagnose'])
+    p.add_argument('command', choices=['profiles', 'models', 'generate', 'edit', 'resume', 'status', 'diagnose', 'remember', 'forget'])
     p.add_argument('--profile')
     p.add_argument('--job')
     p.add_argument('--task')
+    p.add_argument('--model')
     a = p.parse_args()
     try:
-        if a.command == 'profiles':
+        preference = STATE / 'drawing-default.json'
+        if a.command == 'forget':
+            preference.unlink(missing_ok=True)
+            result = {'status': 'forgotten'}
+        elif a.command == 'profiles':
             path = STATE / 'config.json'
             manual = profiles(json.loads(path.read_text(encoding='utf-8'))) if path.exists() else {}
             found, notices = accounts.discover()
@@ -374,8 +380,15 @@ def main():
             job = json.loads(Path(a.job).read_text(encoding='utf-8-sig')) if a.command in ('generate', 'edit') else {}
             if a.profile and job.get('profile') and a.profile != job['profile']:
                 raise ValueError('conflicting_profile_selection')
-            cfg, key, bases = load(a.profile or job.get('profile'))
-            available = routes(key, bases)
+            if a.profile:
+                job['profile'] = a.profile
+            if a.command == 'generate':
+                defaults.resolve(job, defaults.read(preference), 'profile')
+            cfg, key, bases = load(job.get('profile'))
+            cache = defaults.cache_path(STATE, cfg['selected_profile'], bases, key)
+            available = defaults.discovery(cache, lambda: routes(key, bases), fresh=a.command in ('models', 'edit'))
+            if any(route['endpoint'] not in bases for route in available):
+                raise ValueError('invalid_cached_endpoint')
             if a.command == 'models':
                 known = catalog()['models']
                 overview = edit_overview(available, cfg.get('edit_models'))
@@ -384,10 +397,17 @@ def main():
                                                  if m not in known and media_kind(m) == 'video'}),
                           'image_models': {m: dict(known.get(m, {'generate': 'unknown', 'edit': 'unknown', 'quality': 'unknown', 'concurrency_limit': 'unknown', 'service': 'unknown'}), edit_effective=overview[m]['edit'], edit_source=overview[m]['source'])
                                            for m in sorted(overview)}}
+            elif a.command == 'remember':
+                if not any(a.model in route['models'] for route in available):
+                    raise ValueError('choose_listed_model')
+                result = {'profile': cfg['selected_profile'], 'model': a.model}
+                defaults.write(preference, result)
             else:
                 if a.command == 'edit':
                     job.setdefault('edit_transport', cfg.get('edit_transport', 'json'))
                 result = generate(job, key, available, a.command, cfg.get('edit_models'))
+                if result.get('status') == 'rejected' and result.get('http_status') in (400, 404, 422):
+                    cache.unlink(missing_ok=True)
             result['profile'] = cfg['selected_profile']
         print(json.dumps(result, ensure_ascii=True, indent=2))
     except SelectionRequired as exc:

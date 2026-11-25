@@ -32,7 +32,7 @@ class Tests(unittest.TestCase):
         routes = [{"endpoint": c.DIRECT[0], "models": ids + ["text-only", "image-embedding", "wan2.6-i2v", "Veo-3.1", "gen4_image_turbo"]}]
         output = StringIO()
         with patch("sys.argv", ["client", "models", "--profile", "test"]), patch.object(
-            c, "load", return_value=({"selected_profile": "test"}, "fake", [])
+            c, "load", return_value=({"selected_profile": "test"}, "fake", [c.DIRECT[0]])
         ), patch.object(c, "routes", return_value=routes), redirect_stdout(output):
             c.main()
         result = json.loads(output.getvalue())
@@ -42,6 +42,30 @@ class Tests(unittest.TestCase):
         for item in result["image_models"].values():
             self.assertEqual(item["generate"], "unknown")
             self.assertEqual(item["edit_effective"], "unknown")
+
+    def test_saved_drawing_can_run_in_a_new_invocation(self):
+        import sys
+        from contextlib import redirect_stdout
+        from io import StringIO
+        job = c.STATE / "test-job.json"
+        job.write_text(json.dumps({"prompt": "雨天的小面馆"}), encoding="utf-8")
+        routes = [{"endpoint": c.DIRECT[0], "models": ["gpt-image-2"]}]
+        with patch.object(c, "load", return_value=({"selected_profile":"A"}, "key", [c.DIRECT[0]])) as load, patch.object(
+            c, "routes", return_value=routes
+        ) as discovery, patch.object(c, "generate", return_value={"status":"success"}) as generate, redirect_stdout(StringIO()):
+            with patch.object(sys, "argv", ["client","remember","--profile","A","--model","gpt-image-2"]):
+                c.main()
+            with patch.object(sys, "argv", ["client","generate","--job",str(job)]):
+                c.main()
+            self.assertEqual(load.call_args.args, ("A",))
+            self.assertEqual(generate.call_args.args[0]["model"], "gpt-image-2")
+            discovery.assert_called_once()
+            other = {"profile":"B"}
+            c.defaults.resolve(other, {"profile":"A","model":"gpt-image-2"}, "profile")
+            self.assertNotIn("model", other)
+            with patch.object(sys, "argv", ["client","forget"]):
+                c.main()
+            self.assertFalse((c.STATE / "drawing-default.json").exists())
 
     def edit_job(self, temp, model, **extra):
         image = Path(temp) / "input.png"

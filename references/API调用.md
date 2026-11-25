@@ -4,7 +4,7 @@
 
 ## 生成
 
-任务至少包含 profile（已确认来源 ID）、model（完整模型 ID）、prompt。可选 size、quality、output_dir、no_fallback，不得写密钥。运行 <client> generate --job <绝对路径>；GET /v1/models 后以 JSON POST /v1/images/generations。
+普通文生图需要 prompt；用户通过 remember 保存过默认组合后，可省略 profile 和 model。改图仍传明确来源和完整模型 ID。可选 size、quality、output_dir、no_fallback，不得写密钥。运行 <client> generate --job <绝对路径>；GET /v1/models 后以 JSON POST /v1/images/generations。
 
 ## 编辑：默认 JSON
 
