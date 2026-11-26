@@ -3,7 +3,12 @@ import contextlib
 import json
 from pathlib import Path
 import sqlite3
-import tomllib
+try:
+    import tomllib
+except ModuleNotFoundError:  # Python 3.9/3.10 source installs
+    import tomli as tomllib
+import sys
+from functools import lru_cache
 from urllib.parse import urlparse
 
 HOSTS = {'api.gaoxin.net.cn', 'api-sh.gaoxin.net.cn'}
@@ -78,3 +83,27 @@ def discover(home=None, selected=None):
         except (OSError, ValueError, KeyError, TypeError, AttributeError):
             notices.append({'source': 'magpie', 'status': 'providers_unavailable_or_schema_unsupported'})
     return results, notices
+
+
+@lru_cache(maxsize=1)
+def stdin_key():
+    """Read a caller-supplied key once per process; never persist it."""
+    if sys.stdin.isatty():
+        from getpass import getpass
+        value = getpass("API Key: ")
+    else:
+        value = sys.stdin.readline()
+    key = value.strip()
+    if not key or any(ch.isspace() for ch in key):
+        raise ValueError("byok_input_required")
+    return key
+
+
+def resolve(ref):
+    if ref == "byok":
+        return stdin_key()
+    items, _ = discover(selected=ref)
+    key = items.get(ref, {}).get("key")
+    if not key:
+        raise ValueError("selected_credential_unavailable")
+    return key

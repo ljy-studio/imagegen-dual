@@ -3,7 +3,7 @@
 面向 Agent 的图片生成与编辑 Skill。独立 API 客户端、显式模型与账户、结果验证、可回退更新。
 
 [![Tests](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml/badge.svg)](https://github.com/ljy-studio/imagegen-dual/actions/workflows/test.yml)
-[![Version](https://img.shields.io/badge/version-0.3.0--rc.7-111827)](version.json)
+[![Version](https://img.shields.io/badge/version-0.3.0--rc.8-111827)](version.json)
 
 ## 一句话安装
 
@@ -13,7 +13,7 @@ GitHub 无法访问时改用国内镜像：从这个仓库安装 imagegen dual s
 
 Agent 收到安装请求后，先阅读 [INSTALL.md](INSTALL.md)，按其中流程完成清理、安装、离线验证和结果报告。用户无需复制额外操作细则。
 
-安装验收必须包含清理记录。仅复制文件或通过离线测试，不代表完成安装。便携包请使用 v0.3.0-rc.7 或更新的 Release；rc.1、rc.2 的包不含清理校验修复和 edit 支持判断。
+安装验收必须包含清理记录。仅复制文件或通过离线测试，不代表完成安装。便携包请使用 v0.3.0-rc.8 或更新的 Release；rc.1、rc.2 的包不含清理校验修复和 edit 支持判断。
 
 ## 安装方式
 
@@ -86,4 +86,8 @@ python -B scripts/release_test.py
 
 ## 当前状态
 
-0.3.0-rc.7 将 MiniMax-H3-Image 和 qwen-image-2.1 合入统一生图入口，视频交给 videogen。支持保存或忘记默认画图账户和模型。保存后可直接描述想画的内容；客户端复用十分钟内的模型列表。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。
+0.3.0-rc.8 将 MiniMax-H3-Image 和 qwen-image-2.1 合入统一生图入口，视频交给 videogen。支持保存或忘记默认画图账户和模型。保存后可直接描述想画的内容；客户端复用十分钟内的模型列表。JSON edit 已按官方参考实现，两个 2.5 模型在实际网关上的兼容性仍需回测，不能用本地测试代替。Windows x64 是当前便携构建目标。
+
+## 账户来源
+
+凭证可选 CCSwitch、Magpie 或用户直接交给助手的 BYOK。先列出非敏感来源，用户已选则直接使用。BYOK 将本轮密钥作为单行标准输入传给子进程；勿回显、写入任务 JSON、命令行参数、脚本、记录或持久偏好。后续独立进程需要同一 Key 时，助手从当前已授权上下文再次通过标准输入传入。切勿从历史聊天取密钥或在失败时更换账户。客户端使用 profiles 列出来源，models --profile <ref> 查询模型。任务 JSON 可填写 profile 来源标识。BYOK 使用 byok。

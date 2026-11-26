@@ -121,7 +121,7 @@ class Tests(unittest.TestCase):
             with patch.object(c, 'STATE', state), patch.dict(c.os.environ, {'TEST_H': 'h', 'TEST_Z': 'z'}):
                 with self.assertRaises(c.SelectionRequired) as error:
                     c.load()
-                self.assertEqual(set(error.exception.options), {'HyperChain', 'ImageGen Dual信息'})
+                self.assertEqual(set(error.exception.options), {'HyperChain', 'ImageGen Dual信息', 'byok'})
                 self.assertEqual(c.load('ImageGen Dual信息')[1], 'z')
                 self.assertEqual(c.load('HyperChain')[1], 'h')
 

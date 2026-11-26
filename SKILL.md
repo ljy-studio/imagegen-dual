@@ -7,6 +7,9 @@ description: 通过已配置的图片 API 生成或编辑图片，支持源码�
 
 # imagegen dual
 
+凭证可选 CCSwitch、Magpie 或用户直接交给助手的 BYOK。先列出非敏感来源，用户已选则直接使用。BYOK 将本轮密钥作为单行标准输入传给子进程；勿回显、写入任务 JSON、命令行参数、脚本、记录或持久偏好。后续独立进程需要同一 Key 时，助手从当前已授权上下文再次通过标准输入传入。切勿从历史聊天取密钥或在失败时更换账户。profiles 列出来源；models 使用 --profile <ref>，生成任务使用 profile。直接用 Key 时 ref 固定为 byok。
+
+
 收到安装或重新安装请求时，先阅读 [INSTALL.md](INSTALL.md)，执行安装流程后结束；不要转入日常生图流程询问模型或账户。
 
 ## 范围与共存

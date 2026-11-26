@@ -145,13 +145,15 @@ def profiles(cfg):
 
 
 def load(profile=None):
+    if profile == 'byok':
+        return {'selected_profile': profile}, accounts.stdin_key(), DIRECT
     path = STATE / 'config.json'
     cfg = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
     choices = profiles(cfg) if cfg else {}
     discovered, _ = accounts.discover()
     choices.update({ref: {'account_ref': ref} for ref in discovered})
     if profile is None:
-        raise SelectionRequired('profile', list(choices))
+        raise SelectionRequired('profile', list(choices) + ['byok'])
     if profile not in choices:
         raise ValueError('unknown_profile')
     cfg = dict(choices[profile], selected_profile=profile)
@@ -380,7 +382,7 @@ def main():
             path = STATE / 'config.json'
             manual = profiles(json.loads(path.read_text(encoding='utf-8'))) if path.exists() else {}
             found, notices = accounts.discover()
-            result = {'profiles': {**{k: {'label': k, 'source': 'manual'} for k in manual}, **found}, 'notices': notices}
+            result = {'profiles': {**{k: {'label': k, 'source': 'manual'} for k in manual}, **found, 'byok': {'label': '本次直接提供 Key', 'source': 'stdin'}}, 'notices': notices}
         elif a.command in ('status', 'diagnose'):
             from diagnostics import report
             result = report(Path(a.task).resolve(), share=a.command == 'diagnose')
