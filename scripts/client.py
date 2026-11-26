@@ -101,6 +101,9 @@ def observe_edit(endpoint, model, outcome, http_status=None, request_id=None):
 def edit_support(model, endpoint, overrides=None):
     """Return (state, source, evidence). Explicit profile setting, then fresh local results, then catalog."""
     host = urlparse(endpoint).hostname
+    known = catalog()
+    if host in known['edit_applies_to_hosts'] and known['models'].get(model, {}).get('service') != 'non_reverse_proxy':
+        return 'unsupported', 'upstream_generate_only', None
     if isinstance(overrides, dict) and isinstance(overrides.get(model), bool):
         return ('supported' if overrides[model] else 'unsupported'), 'profile_config', None
     item = observations().get(str(host) + '|' + model)
@@ -111,7 +114,6 @@ def edit_support(model, endpoint, overrides=None):
             return 'unsupported', 'local_observation', item
         if item.get('failures', 0) >= EDIT_FAILURE_LIMIT:
             return 'failing', 'local_observation', item
-    known = catalog()
     # Catalog facts describe one upstream only; a custom gateway stays unknown.
     if host in known.get('edit_applies_to_hosts', []):
         entry = known['models'].get(model, {})
@@ -126,7 +128,7 @@ def edit_overview(available, overrides=None):
     result = {}
     for route in available:
         for model in route['models']:
-            is_candidate = model in known or media_kind(model) == 'image'
+            is_candidate = model in known or media_kind(model) == 'image' or 'image' in route.get('output_modalities', {}).get(model, [])
             if is_candidate and model not in result:
                 state, source, _ = edit_support(model, route['endpoint'], overrides)
                 result[model] = {'edit': state, 'source': source}
@@ -191,7 +193,12 @@ def routes(key, bases):
             if r.status_code == 200:
                 data = r.json()['data']
                 ids = [x['id'] for x in data if isinstance(x.get('id'), str)]
-                result.append({'endpoint': base, 'models': ids})
+                modalities = {row['id']: row['output_modalities'] for row in data
+                              if isinstance(row.get('id'), str) and isinstance(row.get('output_modalities'), list)}
+                route = {'endpoint': base, 'models': ids}
+                if modalities:
+                    route['output_modalities'] = modalities
+                result.append(route)
             else:
                 failures.append(dict(endpoint=base, **error_detail(r, key)))
         except (requests.RequestException, ValueError, KeyError, TypeError, AttributeError) as exc:
@@ -246,6 +253,11 @@ def generate(job, key, available, operation='generate', edit_models=None):
         raise ValueError('requested_model_unavailable_choose_from_models')
     if not isinstance(job.get('prompt'), str) or not job['prompt'].strip():
         raise ValueError('prompt_required')
+    if operation == 'edit':
+        eligible = [base for base in eligible if edit_support(model, base, edit_models)[1] != 'upstream_generate_only']
+        if not eligible:
+            raise EditUnsupported({'model': model, 'edit': 'unsupported', 'source': 'upstream_generate_only',
+                                   'posts_sent': 0})
     image = Path(job['image']).resolve() if operation == 'edit' else None
     image_info = validate(image.read_bytes()) if image else None
     transport = job.get('edit_transport', 'json') if image else 'json'
@@ -283,6 +295,8 @@ def generate(job, key, available, operation='generate', edit_models=None):
                 with session() as s:
                     payload = {'prompt': job['prompt'], 'model': model, 'n': 1,
                                'size': job.get('size', '1024x1024'), 'quality': job.get('quality', 'auto')}
+                    if not image and model in ('MiniMax-H3-Image', 'qwen-image-2.1'):
+                        payload.pop('quality')
                     args = {'headers': {'Authorization': 'Bearer ' + key}, 'timeout': (10, 360), 'allow_redirects': False}
                     if image and transport == 'multipart':
                         with image.open('rb') as stream:
@@ -394,7 +408,7 @@ def main():
                 overview = edit_overview(available, cfg.get('edit_models'))
                 result = {'profile': cfg['selected_profile'], 'routes': available,
                           'video_models': sorted({m for route in available for m in route['models']
-                                                 if m not in known and media_kind(m) == 'video'}),
+                                                 if media_kind(m) == 'video' or 'video' in route.get('output_modalities', {}).get(m, [])}),
                           'image_models': {m: dict(known.get(m, {'generate': 'unknown', 'edit': 'unknown', 'quality': 'unknown', 'concurrency_limit': 'unknown', 'service': 'unknown'}), edit_effective=overview[m]['edit'], edit_source=overview[m]['source'])
                                            for m in sorted(overview)}}
             elif a.command == 'remember':

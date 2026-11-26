@@ -41,7 +41,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(result["video_models"], ["Veo-3.1", "wan2.6-i2v"])
         for item in result["image_models"].values():
             self.assertEqual(item["generate"], "unknown")
-            self.assertEqual(item["edit_effective"], "unknown")
+            self.assertEqual(item["edit_effective"], "unsupported")
 
     def test_saved_drawing_can_run_in_a_new_invocation(self):
         import sys
@@ -72,16 +72,15 @@ class Tests(unittest.TestCase):
         c.Image.new("RGB", (4, 4)).save(image)
         return dict({"model": model, "prompt": "edit", "image": str(image), "output_dir": temp}, **extra)
 
-    def test_known_failing_edit_model_is_blocked_before_post(self):
-        model = "gpt-image-2.5-sunburst"
-        routes = [{"endpoint": c.DIRECT[0], "models": [model, "az/gpt-image-2.5-sunburst"]}]
-        with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
-            with self.assertRaises(c.EditUnsupported) as error:
-                c.generate(self.edit_job(temp, model), "fake", routes, "edit")
+    def test_generate_only_route_blocks_edit_before_reading_image(self):
+        for model in ("gpt-image-2.5-sunburst", "gpt-image-next"):
+            routes = [{"endpoint": base, "models": [model]} for base in c.DIRECT]
+            with patch.object(c, "session") as factory, self.assertRaises(c.EditUnsupported) as error:
+                c.generate({"model": model, "prompt": "edit", "force_edit": True},
+                           "fake", routes, "edit", {model: True})
             factory.assert_not_called()
             self.assertEqual(error.exception.detail["posts_sent"], 0)
-            self.assertEqual(error.exception.detail["edit"], "failing")
-            self.assertIn("az/gpt-image-2.5-sunburst", error.exception.detail["edit_unverified_models"])
+            self.assertEqual(error.exception.detail["source"], "upstream_generate_only")
 
     def test_generate_is_not_blocked_for_edit_failing_model(self):
         model = "gpt-image-2.5-sunburst"
@@ -95,7 +94,7 @@ class Tests(unittest.TestCase):
 
     def test_force_and_profile_override_allow_one_post(self):
         model = "gpt-image-2.5-sunburst"
-        routes = [{"endpoint": c.DIRECT[0], "models": [model]}]
+        routes = [{"endpoint": "https://custom.example/v1", "models": [model]}]
         for job_extra, overrides in (({"force_edit": True}, None), ({}, {model: True})):
             with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
                 post = factory.return_value.__enter__.return_value.post
@@ -106,7 +105,7 @@ class Tests(unittest.TestCase):
                 self.assertEqual(post.call_count, 1)
 
     def test_unsupported_response_is_remembered(self):
-        routes = [{"endpoint": c.DIRECT[0], "models": ["gpt-image-2"]}]
+        routes = [{"endpoint": "https://custom.example/v1", "models": ["gpt-image-2"]}]
         with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
             post = factory.return_value.__enter__.return_value.post
             post.return_value.status_code = 400
@@ -119,7 +118,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(post.call_count, 1)
 
     def test_single_500_does_not_block_but_repeat_does(self):
-        routes = [{"endpoint": c.DIRECT[0], "models": ["gpt-image-2"]}]
+        routes = [{"endpoint": "https://custom.example/v1", "models": ["gpt-image-2"]}]
         with tempfile.TemporaryDirectory() as temp, patch.object(c, "session") as factory:
             post = factory.return_value.__enter__.return_value.post
             post.return_value.status_code = 500
@@ -163,7 +162,7 @@ class Tests(unittest.TestCase):
             post.return_value.status_code = 400
             post.return_value.headers = {}
             post.return_value.json.return_value = {'error': {'message': "invalid character '-' in numeric literal"}}
-            result = c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'json', 'output_dir': temp}, 'fake', [{'endpoint': c.DIRECT[0], 'models': ['test']}], 'edit')
+            result = c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'json', 'output_dir': temp}, 'fake', [{'endpoint': "https://custom.example/v1", 'models': ['test']}], 'edit')
             self.assertEqual(post.call_count, 1)
             self.assertIn('json', post.call_args.kwargs)
             self.assertNotIn('files', post.call_args.kwargs)
@@ -177,7 +176,7 @@ class Tests(unittest.TestCase):
             image = Path(temp) / 'input.png'
             c.Image.new('RGB', (4, 4)).save(image)
             with self.assertRaisesRegex(ValueError, 'edit_transport'):
-                c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'guess', 'output_dir': temp}, 'fake', [{'endpoint': c.DIRECT[0], 'models': ['test']}], 'edit')
+                c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'guess', 'output_dir': temp}, 'fake', [{'endpoint': "https://custom.example/v1", 'models': ['test']}], 'edit')
             factory.assert_not_called()
 
     def test_minimal_initialization(self):

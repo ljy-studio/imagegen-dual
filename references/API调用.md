@@ -33,9 +33,9 @@ invalid character '-' in numeric literal 与 multipart 边界被 JSON 解析的�
 | failing | 多次真实请求均返回服务端错误 | 不发请求，向用户说明并给出替代项 |
 | unsupported | 上游明确不支持，或用户在配置中声明不支持 | 不发请求，向用户说明并给出替代项 |
 
-判定顺序：profile 配置中的 edit_models（如 {"edit_models": {"模型ID": false}}）优先，其次是本机 7 天内的实际调用结果，最后是随包的 capabilities.json。capabilities.json 的结论只对其 edit_applies_to_hosts 列出的服务地址有效，自定义网关一律按 unknown 处理。
+默认网关的反代路线仅支持生成。未登记为独立非反代路线的新模型也按仅生成处理。编辑在读取原图前拦截，force_edit 和 profile 覆盖不生效。其他渠道的判定顺序：profile 配置中的 edit_models（如 {"edit_models": {"模型ID": false}}）优先，其次是本机 7 天内的实际调用结果，最后是随包的 capabilities.json。capabilities.json 的结论只对其 edit_applies_to_hosts 列出的服务地址有效，自定义网关一律按 unknown 处理。
 
-对 unsupported 或 failing 的模型执行 edit 时，客户端在发送前返回 status=edit_unsupported、posts_sent=0（退出码 3），并列出同一来源下 edit_supported_models 和 edit_unverified_models。此时没有请求和费用。把这些候选告诉用户，由用户选择换模型改图、重新生成或停止；不自动换模型，不把改图请求改成文生图。
+反代已成功出图后的纠错反馈（如“流水线太暗了”）直接进入 generate：沿用上一张实际账户、模型和尺寸，将调整合入提示词，一次生成一张新图。此流程发生在已交付图片之后；请求结果未知时仍按故障恢复流程处理。对于其他渠道，对 unsupported 或 failing 的模型执行 edit 时，客户端在发送前返回 status=edit_unsupported、posts_sent=0（退出码 3），并列出同一来源下 edit_supported_models 和 edit_unverified_models。此时没有请求和费用。把这些候选告诉用户，由用户选择换模型改图、重新生成或停止；不自动换模型，不把改图请求改成文生图。
 
 实际调用结果自动写入 ~/.imagegen-dual/edit-observations.json，只含服务地址、模型、状态码和请求编号：改图成功记为支持；404、405、501 或明确的“不支持”提示记为不支持；单次 5xx 只计数，连续 2 次才判为 failing，成功一次即清零。上游修复后，可删除该文件中对应条目，或在任务里加 "force_edit": true 由用户明确授权再试一次。
 

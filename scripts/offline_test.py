@@ -45,7 +45,7 @@ class Tests(unittest.TestCase):
             post = factory.return_value.__enter__.return_value.post
             post.return_value = response
             result = c.generate({'model': 'test', 'prompt': 'edit', 'image': str(image), 'edit_transport': 'multipart', 'output_dir': temp},
-                                'fake-secret', [{'endpoint': c.DIRECT[0], 'models': ['test']}], 'edit')
+                                'fake-secret', [{'endpoint': 'https://custom.example/v1', 'models': ['test']}], 'edit')
             self.assertEqual(result['error']['code'], 'bad_size')
             self.assertTrue(post.call_args.args[0].endswith('/images/edits'))
             self.assertIn('files', post.call_args.kwargs)
